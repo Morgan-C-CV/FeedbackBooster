@@ -7,8 +7,7 @@ class LLMService {
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(llmConfig.geminiApiKey);
-    // Explicitly using gemini-1.5-flash as the fastest and most cost-effective variant
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
   }
 
   async generateJsonContent(prompt: string): Promise<string> {
