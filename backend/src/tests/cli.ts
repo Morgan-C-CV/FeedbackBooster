@@ -28,6 +28,12 @@ async function runTest() {
     console.log("\n[Task-Level Result]:");
     console.log(JSON.stringify(taskResult, null, 2));
 
+    console.log("\n=== Testing Dual Interpretations ===");
+    console.log(`Feedback: "${processLevelFeedback}"`);
+    const dualResult = await feedbackService.generateDualInterpretations(processLevelFeedback, originalContent);
+    console.log("\n[Dual Interpretations Result]:");
+    console.log(JSON.stringify(dualResult, null, 2));
+
   } catch (err) {
     console.error("Error during categorization:", err);
   }
