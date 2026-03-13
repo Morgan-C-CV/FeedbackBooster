@@ -11,7 +11,6 @@ Furthermore, your theoretical framework explanation is not coherent and the argu
 const processLevelFeedback = "The research question lacks novelty and the positioning is too broad.";
 
 function highlightKeywords(text: string, positions: { startIndex: number, endIndex: number }[]) {
-  // Sort positions just in case
   const sortedPositions = [...positions].sort((a, b) => a.startIndex - b.startIndex);
 
   let highlightedText = "";
@@ -19,15 +18,28 @@ function highlightKeywords(text: string, positions: { startIndex: number, endInd
 
   for (const pos of sortedPositions) {
     if (pos.startIndex >= currentIndex) {
-      // Add text before the keyword
       highlightedText += text.substring(currentIndex, pos.startIndex);
-      // Add the highlighted keyword
       highlightedText += chalk.bgYellow.black(text.substring(pos.startIndex, pos.endIndex));
       currentIndex = pos.endIndex;
     }
   }
-  // Add remaining text
   highlightedText += text.substring(currentIndex);
+
+  return highlightedText;
+}
+
+function highlightSupportedText(text: string, supportedPhrases: string[]) {
+  let highlightedText = text;
+  // Simple replacement for demonstration.
+  // We sort by length descending to replace longer phrases first.
+  const sortedPhrases = [...supportedPhrases].sort((a, b) => b.length - a.length);
+
+  for (const phrase of sortedPhrases) {
+    if (!phrase) continue;
+    // We use split/join to replace all occurrences without regex escaping issues
+    const parts = highlightedText.split(phrase);
+    highlightedText = parts.join(chalk.bgGreen.black(phrase));
+  }
 
   return highlightedText;
 }
@@ -77,8 +89,30 @@ async function runInteractiveTest() {
 
     const userReasoning = await reasonPrompt.run();
 
-    console.log("\n");
-    console.log(chalk.white(`Your logged reasoning: "${userReasoning}"`));
+    console.log("\n" + chalk.blue(`Checking consistency of your reasoning against the ${answer} context...`));
+
+    const consistencyResult = await feedbackService.checkReasoningConsistency(
+      userReasoning,
+      answer,
+      processLevelFeedback,
+      originalContent,
+      keywordResult.keywords
+    );
+
+    console.log(chalk.green("✔ Consistency Check Complete!\n"));
+
+    console.log(chalk.bold("Analysis Result: ") + (consistencyResult.isSupported ? chalk.green("SUPPORTED") : chalk.red("UNSUPPORTED")));
+    console.log(chalk.gray(`Explanation: ${consistencyResult.explanation}\n`));
+
+    console.log(chalk.bold("Your Reasoning (Supported parts in GREEN):"));
+    const evaluatedReasoning = highlightSupportedText(userReasoning, consistencyResult.supportedText || []);
+    console.log(evaluatedReasoning);
+
+    if (consistencyResult.unsupportedText && consistencyResult.unsupportedText.length > 0) {
+      console.log(chalk.red("\nUnsupported / Illogical Phrases Detected:"));
+      consistencyResult.unsupportedText.forEach(t => console.log(chalk.red(`- "${t}"`)));
+    }
+
     console.log(chalk.blue.bold("\n=====================================================================\n"));
 
   } catch (err) {

@@ -34,6 +34,19 @@ async function runTest() {
     console.log("\n[Dual Interpretations Result]:");
     console.log(JSON.stringify(dualResult, null, 2));
 
+    console.log("\n=== Testing Reasoning Consistency ===");
+    const sampleReasoning = "I chose Process-Level because the feedback mentions 'research question lacks novelty', which means the entire direction is wrong, but it doesn't mean the writing itself is bad.";
+    console.log(`User Reasoning: "${sampleReasoning}"`);
+    const consistencyResult = await feedbackService.checkReasoningConsistency(
+      sampleReasoning,
+      "Process-Level",
+      processLevelFeedback,
+      originalContent,
+      processResult.keywords
+    );
+    console.log("\n[Consistency Result]:");
+    console.log(JSON.stringify(consistencyResult, null, 2));
+
   } catch (err) {
     console.error("Error during categorization:", err);
   }

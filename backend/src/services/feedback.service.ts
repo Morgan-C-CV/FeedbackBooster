@@ -24,6 +24,13 @@ export interface DualInterpretationResult {
   };
 }
 
+export interface ReasoningConsistencyResult {
+  isSupported: boolean;
+  supportedText: string[];
+  unsupportedText: string[];
+  explanation: string;
+}
+
 class FeedbackService {
 
   /**
@@ -153,6 +160,63 @@ class FeedbackService {
     } catch (error) {
       console.error("Error generating dual interpretations:", error);
       throw new Error("Failed to generate dual interpretations.");
+    }
+  }
+
+  /**
+   * Evaluates the user's reasoning against the feedback, extracted keywords, and original content.
+   * Determines which parts of the user's reasoning are supported by the context and which are not.
+   * @param userReasoning The user's input reasoning
+   * @param selectedInterpretation 'Task-Level' or 'Process-Level'
+   * @param originalFeedback The original feedback text
+   * @param originalContent The original paper content
+   * @param extractedKeywords The keywords extracted from the feedback
+   * @returns Detailed consistency evaluation
+   */
+  async checkReasoningConsistency(
+    userReasoning: string,
+    selectedInterpretation: string,
+    originalFeedback: string,
+    originalContent: string,
+    extractedKeywords: string[]
+  ): Promise<ReasoningConsistencyResult> {
+    const prompt = `
+      You are an expert academic research mentor evaluating a student's reasoning for classifying feedback.
+      The student has classified the feedback as "${selectedInterpretation}".
+      
+      Your task is to analyze the student's reasoning and determine consistency against the provided context.
+      You must identify:
+      1. EXACT phrasing from the student's reasoning that is supported by the context.
+      2. EXACT phrasing from the student's reasoning that is NOT supported by the context.
+
+      For the given inputs below, return a JSON response strictly matching this structure:
+      {
+        "isSupported": true | false, // True if the reasoning is mostly/entirely supported, false if mostly unsupported or illogical
+        "supportedText": ["array", "of", "exact", "phrases", "from", "userReasoning", "that", "are", "supported"],
+        "unsupportedText": ["array", "of", "exact", "phrases", "from", "userReasoning", "that", "are", "unsupported"],
+        "explanation": "Brief explanation of why the reasoning is or isn't supported."
+      }
+
+      Student's Reasoning to analyze:
+      "${userReasoning}"
+
+      Original Feedback:
+      "${originalFeedback}"
+
+      Keywords extracted from feedback:
+      ${JSON.stringify(extractedKeywords)}
+
+      Original Content:
+      "${originalContent}"
+    `;
+
+    try {
+      const jsonStr = await llmService.generateJsonContent(prompt);
+      const result: ReasoningConsistencyResult = JSON.parse(jsonStr);
+      return result;
+    } catch (error) {
+      console.error("Error checking reasoning consistency:", error);
+      throw new Error("Failed to check reasoning consistency.");
     }
   }
 }
