@@ -6,12 +6,9 @@ export interface KeywordPosition {
   endIndex: number;
 }
 
-export interface FeedbackCategorizationResult {
-  level: 'Task-Level' | 'Process-Level' | 'Unknown';
-  category?: 'Surface clarity' | 'Method' | 'Strategy' | 'None';
+export interface KeywordExtractionResult {
   keywords: string[];
   keywordPositions?: KeywordPosition[];
-  reasoning: string;
 }
 
 export interface DualInterpretationResult {
@@ -58,25 +55,20 @@ class FeedbackService {
     return positions;
   }
 
-  async categorizeFeedback(text: string, originalContent: string): Promise<FeedbackCategorizationResult> {
+  async extractKeywords(text: string, originalContent: string): Promise<KeywordExtractionResult> {
     const prompt = `
-      You are an expert academic research mentor capable of analyzing feedback given to junior PhD & Masters students.
-      Your task is to classify the provided feedback into one of two main levels: "Task-Level" or "Process-Level".
+      You are an expert academic research mentor analyzing feedback given to junior PhD & Masters students.
+      Your EXTRACT ONLY task is strictly to pull out keywords or key phrases from the provided feedback that could relate to evaluation.
       
-      Definitions:
-      1. Task-Level (Global/Local): Evaluates "Surface clarity (expression only)". The feedback addresses the quality of the current research argument, contribution, or explanation.
-         It involves: Argument clarity, Contribution articulation, Conceptual coherence.
-         
-      2. Process-Level: Evaluates "Method" or "Strategy".
-         - Method: The feedback addresses whether the chosen method, design, or strategy is appropriate or sufficient.
-         - Strategy: (framing/positioning/novelty justification) The feedback addresses higher-level positioning, framing, research question choice, or overall research direction.
+      CRITICAL INSTRUCTION: You MUST NOT make any judgment or categorization about whether the feedback is Task-Level or Process-Level. Only output the exact keywords or phrases that humans can use to make this judgment themselves.
+      
+      Look for terms in the feedback relating to:
+      1. Task-Level aspects: "Surface clarity", Argument clarity, Contribution articulation, Conceptual coherence.
+      2. Process-Level aspects: "Method", "Strategy", framing, positioning, novelty justification, research question choice, overall research direction.
 
-      For the given feedback text below, return a JSON response strictly matching this structure:
+      Return a JSON response strictly matching this structure with NO other commentary or judgments:
       {
-        "level": "Task-Level" | "Process-Level" | "Unknown",
-        "category": "Surface clarity" | "Method" | "Strategy" | "None",
-        "keywords": ["array", "of", "exact", "keywords", "from", "the", "feedback", "that", "justify", "this", "level"],
-        "reasoning": "brief explanation of why this level and category were chosen based on the keywords"
+        "keywords": ["array", "of", "exact", "extracted", "keywords", "from", "the", "feedback"]
       }
 
       Feedback text on Original Content to analyze:
@@ -88,7 +80,7 @@ class FeedbackService {
 
     try {
       const jsonStr = await llmService.generateJsonContent(prompt);
-      const result: FeedbackCategorizationResult = JSON.parse(jsonStr);
+      const result: KeywordExtractionResult = JSON.parse(jsonStr);
 
       // Calculate keyword positions in the original feedback text
       if (result.keywords && Array.isArray(result.keywords)) {
@@ -99,8 +91,8 @@ class FeedbackService {
 
       return result;
     } catch (error) {
-      console.error("Error categorizing feedback:", error);
-      throw new Error("Failed to categorize feedback.");
+      console.error("Error extracting keywords:", error);
+      throw new Error("Failed to extract keywords.");
     }
   }
 

@@ -18,13 +18,13 @@ async function runTest() {
   console.log(`Feedback: "${processLevelFeedback}"`);
 
   try {
-    const processResult = await feedbackService.categorizeFeedback(processLevelFeedback, originalContent);
+    const processResult = await feedbackService.extractKeywords(processLevelFeedback, originalContent);
     console.log("\n[Process-Level Result]:");
     console.log(JSON.stringify(processResult, null, 2));
 
     console.log("\n=== Testing Task-Level Feedback ===");
     console.log(`Feedback: "${taskLevelFeedback}"`);
-    const taskResult = await feedbackService.categorizeFeedback(taskLevelFeedback, originalContent);
+    const taskResult = await feedbackService.extractKeywords(taskLevelFeedback, originalContent);
     console.log("\n[Task-Level Result]:");
     console.log(JSON.stringify(taskResult, null, 2));
 
