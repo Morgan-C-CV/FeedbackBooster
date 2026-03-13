@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "difficulty": "Easy",
+    "style": "Direct/Constructive",
+    "originalContent": "This study investigates the effect of LLM-assisted code generation on developer cognitive load. We propose a between-subjects experimental design (N=24) where participants complete algorithm implementation tasks either with or without Copilot. NASA-TLX surveys will be administered post-task to quantify cognitive demand.",
+    "feedback": "Thanks for sending this over, I enjoyed reading the motivation section. The experimental design is a good starting point. However, I'm a bit concerned that relying solely on self-reported NASA-TLX scores might not be sufficient to capture the nuances of cognitive load in this context. You might want to look into how recent work by Liang et al. triangulates surveys with IDE telemetry data. Could we explore incorporating some objective measures?"
+  },
+  {
+    "id": 2,
+    "difficulty": "Medium",
+    "style": "Noisy/Conversational",
+    "originalContent": "To understand the privacy implications of ambient voice assistants in multi-generational households, we outline an in-situ deployment of a custom smart speaker. We aim to conduct thematic analysis on post-deployment semi-structured interviews to synthesize localized privacy mental models.",
+    "feedback": "Hey, just read through this on my phone so apologies for any typos. This is an interesting domain, and the deployment setup seems technically solid from what I read. I did find the transition between the discussion on general IoT privacy and your specific focus on multi-generational dynamics a bit hard to follow, though... like it felt like a jump? I suggest you might want to restructure the intro to make that connection more explicit for the reader. Also, check out some of the older ubiquitous computing papers for framing, I think Dourish maybe?"
+  },
+  {
+    "id": 3,
+    "difficulty": "Socratic",
+    "style": "Socratic",
+    "originalContent": "We propose a novel eco-feedback visualization utilizing ambient light displays mapped to real-time grid carbon intensity. We plan to deploy these artifacts in 10 urban households for a one-month period to observe longitudinal shifts in discretionary energy consumption behaviors.",
+    "feedback": "I've reviewed the draft. You've clearly put a lot of thought into the hardware design, which looks great. I am wondering about the one-month deployment duration, though. Have you considered whether that might be a bit too brief to observe sustained behavioral shifts beyond the initial novelty effect? You might find it helpful to reference Pierce's work on long-term engagement in sustainable HCI to justify or adjust this timeframe."
+  },
+  {
+    "id": 4,
+    "difficulty": "Hard",
+    "style": "Vague/Indirect",
+    "originalContent": "To mitigate information overload in asynchronous remote collaboration, we introduce an NLP-based summarization tool integrated within Slack. The tool generates semantic clusters of thread discussions to surface latent dependencies across engineering teams.",
+    "feedback": "I read through the proposal this morning. The integration aspect sounds very smooth. I'm just having a bit of trouble seeing the full picture here. It feels like we might be addressing a symptom rather than the core issue team communication faces. Let's chat next week to see if we are taking the best angle on this."
+  },
+  {
+    "id": 5,
+    "difficulty": "Medium",
+    "style": "Concerned/Scope",
+    "originalContent": "Our research investigates decentralized reputation systems in Web3 platforms. We outline a methodology to architect and deploy a fully functional decentralized social network utilizing zero-knowledge proofs for identity verification, followed by user satisfaction surveys (N=50).",
+    "feedback": "The technical ambition here is quite impressive. I worry, however, that building an entire decentralized social network from scratch might overshadow the core HCI contribution. I suggest we might want to narrow the scope significantly before you write the final proposal. We should focus more tightly on evaluating a specific interaction mechanism rather than the whole ecosystem. Can we look at what Fogg has written on credibility and isolate a smaller probe?"
+  },
+  {
+    "id": 6,
+    "difficulty": "Medium",
+    "style": "Direct/Actionable",
+    "originalContent": "Prior literature underscores the navigational challenges encountered by visually impaired users in unfamiliar transit hubs. We propose an audio-haptic wayfinding interface. The Wizard-of-Oz study protocol involves testing 3 distinct haptic vocabularies with 10 participants.",
+    "feedback": "Good progress on this draft. The motivation is very relatable. I think the phrasing in the methodology section could be tightened up a bit, though. You switch between 'we propose' and 'we will test' in a way that feels a little disjointed. I'd recommend reviewing the APA guidelines for writing methodology sections to ensure the tense is consistent. Otherwise, looking solid."
+  },
+  {
+    "id": 7,
+    "difficulty": "Hard",
+    "style": "Noisy/PDF-Artifacts",
+    "originalContent": "We investigate algorithmic anxiety among gig economy workers by conducting a two-week Experience Sampling Method (ESM) study with rideshare drivers. Participants will self-report stress levels in response to dynamic pricing notifications.",
+    "feedback": "Thanks for sharing the latest version. The methodology is standard and sound. I'm just not quite feeling the 'so what?' coming through strongly enough yet. The narrative might need a little more shaping so the reader immediately grasps why this specific facet of anxiety shifts our understanding of future work. \n\nSent from my iPad"
+  },
+  {
+    "id": 8,
+    "difficulty": "Medium",
+    "style": "Socratic/Methodological",
+    "originalContent": "To evaluate the efficacy of our AR pedestrian navigation interface for neurodivergent users, we will conduct a comparative study against Google Maps. The primary evaluation metrics will comprise task completion time and the frequency of navigational errors during a predefined route.",
+    "feedback": "The prototype design looks very thoughtful. I do have a question about the metrics, though. If a core argument in your framing is that this user group prioritizes cognitive safety and reduced sensory overload over speed, do you think 'task completion time' is still the most appropriate primary metric to emphasize? I suggest looking at how other accessibility papers handle this tradeoff."
+  },
+  {
+    "id": 9,
+    "difficulty": "Hard",
+    "style": "Indirect/Nuanced",
+    "originalContent": "Personal informatics tools often suffer from high longitudinal attrition rates. We develop 'Reflecta', an application utilizing Generative AI to synthesize poetic daily activity summaries in lieu of standard data visualizations, aiming to foster sustained reflection.",
+    "feedback": "I enjoyed the creativity in this draft. The poetic summary idea is very unique. However, the conceptual thread connecting your initial problem statement (attrition) directly to your proposed solution (poetry) feels a little thin to me right now. I can kind of see what you're trying to do, but I think the transition might require the reader to make some leaps in logic. You may want to revisit the intermediate steps of your argument."
+  },
+  {
+    "id": 10,
+    "difficulty": "Easy",
+    "style": "Direct/Structural",
+    "originalContent": "Cybersickness remains a prevailing barrier in VR adoption. We evaluate a novel dynamic Field-of-View (FOV) modulation technique. The independent variables are FOV reduction type and onset latency. The dependent variables comprise physiological heart-rate variability and self-reported Simulator Sickness Questionnaire (SSQ) scores.",
+    "feedback": "The experimental design here is very robust, great job on that. The formatting of the variables paragraph is a bit dense to read, however. I suggest you separate the independent and dependent variables into distinct, clearly labeled bullet points or sub-sections so a reviewer can parse them at a glance."
+  },
+  {
+    "id": 11,
+    "difficulty": "Medium",
+    "style": "Noisy/Rambling",
+    "originalContent": "We investigate the dynamics of human-AI trust calibration within clinical decision support systems. We will present diagnostic anomalies to clinicians accompanied by AI confidence scores, subsequently measuring their rate of algorithmic adherence and cognitive workload via NASA-TLX.",
+    "feedback": "The clinical context you've chosen is highly relevant and timely, especially with all the LLM stuff happening right now. One thing I noticed though... while you mention 'trust calibration,' the proposal doesn't explicitly anchor this concept within an established theoretical framework. It's like, are you using Lee & See's model? Or Mayer's? Or something else entirely? Without clarifying that, the experimental design can feel a bit arbitrary to a reviewer. I strongly suggest integrating a specific framework to ground your research questions. We can talk about which one makes the most sense on Tuesday."
+  },
+  {
+    "id": 12,
+    "difficulty": "Hard",
+    "style": "Vague/Brief",
+    "originalContent": "Contemporary smartwatch interaction is predominantly bimanual. We present a machine learning pipeline for recognizing discrete, one-handed wrist-tilt gestures using the onboard IMU. A Random Forest classifier achieved a cross-validated accuracy of 92% across a 12-gesture taxonomy.",
+    "feedback": "Looks like good progress on the pipeline! For the third paragraph detailing the classifier choice, I'm having a bit of trouble following the rationale. I suggest you might want to expand on that section."
+  },
+  {
+    "id": 13,
+    "difficulty": "Medium",
+    "style": "Direct/Positioning",
+    "originalContent": "To address the persistent challenge of email overload, we engineered a unified, timeline-based email client interface. A preliminary qualitative evaluation with 5 computer science undergraduates demonstrated a perceived reduction in triage time compared to traditional threaded views.",
+    "feedback": "The prototype implementation is a solid piece of work. However, I think the contribution statement in the introduction might be a bit too broad given the context. Framing this as a solution to 'email overload' based on an exploratory evaluation with 5 undergrads might draw heavy criticism. I suggest you down-scope your claims to better align with the specific evidence this preliminary study can provide."
+  },
+  {
+    "id": 14,
+    "difficulty": "Hard",
+    "style": "Socratic/Rhetorical",
+    "originalContent": "To support users in identifying algorithmic bias in news feeds, we propose 'BiasLens', a browser extension that obscures emotionally charged political rhetoric. The experimental evaluation will quantify whether the presence of the extension increases the dwell time on obscured content.",
+    "feedback": "I read the draft—very timely topic! I find myself wondering about the experimental evaluation, though. How does increasing dwell time on a tweet reliably indicate a higher capacity for discerning algorithmic bias? What underlying assumptions are we making about cognitive load and critical thinking here? Let's discuss this logic chain in our next meeting."
+  },
+  {
+    "id": 15,
+    "difficulty": "Medium",
+    "style": "Editorial/Polishing",
+    "originalContent": "Virtual typing interfaces on mixed reality headsets are inefficient. The absence of tactile feedback reduces typing speed. We propose a hexagonal key layout optimized for bimanual thumb or ray-cast input. Hexagonal tiling minimizes the distance between frequently co-occurring characters.",
+    "feedback": "The motivation is strong and the layout design is clever. I did notice that the writing in the introduction feels a bit disjointed. It reads as a series of standalone, simple sentences. I suggest you look for opportunities to combine some of these ideas using transition phrases. This will help create a more cohesive and sophisticated academic flow."
+  },
+  {
+    "id": 16,
+    "difficulty": "Easy",
+    "style": "Noisy/Conversational",
+    "originalContent": "We evaluate the impact of 'dark mode' UX patterns on smartphone battery longevity. The proposed methodology involves a crowdsourced survey via Prolific, wherein 100 participants self-report their estimated daily battery consumption while utilizing a dark mode prototype.",
+    "feedback": "Hi! I appreciate the quick turnaround on this draft. Hmm, I have some serious concerns about the methodology, however... I don't really believe we can reliably measure objective battery consumption by asking crowdsourced workers to estimate it from memory. It just seems way too subjective. I strongly suggest we pivot to utilizing software profiling tools to instrument the system for objective measurements instead. Let me know what you think."
+  },
+  {
+    "id": 17,
+    "difficulty": "Hard",
+    "style": "Indirect/Structural",
+    "originalContent": "Our proposed system, 'FoodLens', leverages deep learning for dietary intake estimation. We compiled a proprietary dataset of 5,000 annotated food images to train a Convolutional Neural Network. Section 3 delineates the dataset curation. Section 4 describes the model architecture. Section 5 presents an evaluation demonstrating 85% accuracy.",
+    "feedback": "This is a very technically rigorous piece of work, well done. As I was reading the introduction, it felt like we jumped straight into the technical infrastructure (the CNN and dataset) before fully establishing the HCI problem or user need this specific approach addresses. You might want to restructure the narrative so the story flows more naturally from the user experience constraint to the technical solution."
+  },
+  {
+    "id": 18,
+    "difficulty": "Medium",
+    "style": "Socratic/Clarity",
+    "originalContent": "We utilize a post-phenomenological framework to explicate the ontological shift in spatial perception mediated by the immersive affordances of the telepresence robotic surrogate.",
+    "feedback": "I see you're integrating some heavy theoretical concepts here, which is ambitious. I'm wondering, though, if the phrasing in this core sentence might be a bit impenetrable for a general HCI reviewer. I suggest trying to rewrite this exact same idea in plainer language. Is there a way to convey this insight without relying so heavily on the philosophical jargon?"
+  },
+  {
+    "id": 19,
+    "difficulty": "Hard",
+    "style": "Vague/Strategic",
+    "originalContent": "We introduce a gamified intervention designed to encourage mindfulness practices among adolescents. The mobile application utilizes a pervasive virtual garden metaphor where flora matures synchronously with the user's logged meditation sessions. An in-the-wild deployment is planned at a local high school.",
+    "feedback": "Thanks for sharing this draft. The visual mockups look great. I'm just a little worried that the framing might be leaning a bit too hard into 'gamification for the sake of gamification'. I'm not entirely seeing what the unique HCI or theoretical insight is here yet. Maybe we can brainstorm some ways to deepen the framing on Wednesday."
+  },
+  {
+    "id": 20,
+    "difficulty": "Medium",
+    "style": "Direct/Contribution",
+    "originalContent": "We present a replication of Smith et al.'s seminal study on Fitts' Law, adapted for smartwatch interaction modalities. The empirical evaluation yielded a measured throughput of 3.5 bits/s, confirming that the underlying motor behavior principles hold true for micro-scale interfaces.",
+    "feedback": "It's good to see this replication study coming together. However, I think your introduction needs to work a bit harder to justify the necessity of this work to the HCI community. Simply stating 'we did X but on a watch' might not be seen as a sufficient contribution for a full paper. I suggest re-focusing the introduction to explicitly articulate what new theoretical insight we gain about motor behavior from this replication."
+  }
+]

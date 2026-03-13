@@ -3,12 +3,16 @@ import chalk from 'chalk';
 const { Select, Input } = require('enquirer');
 
 const originalContent = `
-Recent studies on HCI focusing on older adults have highlighted several usability issues. 
-However, the research question lacks novelty and the positioning is too broad for a targeted contribution. 
-Furthermore, your theoretical framework explanation is not coherent and the arguments are hard to follow.
+# Introduction & Motivation
+Recent studies on HCI focusing on older adults have highlighted several usability issues with mobile health applications. 
+Many existing apps use small fonts and complex navigation hierarchies. 
+My research proposes to build another mobile health app that tracks daily water intake for the elderly. 
+The app will use a standard React Native framework and include push notifications.
+The main research question is: "How do older adults interact with a water tracking app?"
+We plan to use a Technology Acceptance Model (TAM) to evaluate user satisfaction over a 2-week period.
 `;
 
-const processLevelFeedback = "The research question lacks novelty and the positioning is too broad.";
+const feedback = "The research question lacks novelty and the positioning is too broad. Building 'another' app without a unique technological or methodological angle doesn't offer a targeted contribution to the HCI community. Also, your theoretical framework explanation is not coherent and the arguments justifying TAM are hard to follow.";
 
 function highlightKeywords(text: string, positions: { startIndex: number, endIndex: number }[]) {
   const sortedPositions = [...positions].sort((a, b) => a.startIndex - b.startIndex);
@@ -58,19 +62,19 @@ async function runInteractiveTest() {
   console.log("\n\n");
 
   console.log(chalk.white("--- Feedback ---\n"));
-  console.log(chalk.bold(processLevelFeedback));
+  console.log(chalk.bold(feedback));
   console.log("\n\n");
 
   try {
-    const keywordResult = await feedbackService.extractKeywords(processLevelFeedback, originalContent);
+    const keywordResult = await feedbackService.extractKeywords(feedback, originalContent);
 
     console.log(chalk.green("Keywords Extracted:\n"));
-    const highlightedFeedback = highlightKeywords(processLevelFeedback, keywordResult.keywordPositions || []);
+    const highlightedFeedback = highlightKeywords(feedback, keywordResult.keywordPositions || []);
     console.log(highlightedFeedback);
     console.log("\n");
 
     console.log(chalk.blue("Generating Dual Interpretations..."));
-    const dualResult = await feedbackService.generateDualInterpretations(processLevelFeedback, originalContent);
+    const dualResult = await feedbackService.generateDualInterpretations(feedback, originalContent);
 
     console.log(chalk.bold("Task-Level Interpretation: ") + dualResult.taskLevelInterpretation.reasoning + "\n");
     console.log(chalk.bold("Process-Level Interpretation: ") + dualResult.processLevelInterpretation.reasoning + "\n");
@@ -100,7 +104,7 @@ async function runInteractiveTest() {
     const consistencyResult = await feedbackService.checkReasoningConsistency(
       userReasoning,
       answer,
-      processLevelFeedback,
+      feedback,
       originalContent,
       keywordResult.keywords
     );
