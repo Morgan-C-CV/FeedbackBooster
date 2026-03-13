@@ -28,17 +28,23 @@ function highlightKeywords(text: string, positions: { startIndex: number, endInd
   return highlightedText;
 }
 
-function highlightSupportedText(text: string, supportedPhrases: string[]) {
+function highlightReasoning(text: string, supportedPhrases: string[], unsupportedPhrases: string[]) {
   let highlightedText = text;
-  // Simple replacement for demonstration.
-  // We sort by length descending to replace longer phrases first.
-  const sortedPhrases = [...supportedPhrases].sort((a, b) => b.length - a.length);
 
-  for (const phrase of sortedPhrases) {
-    if (!phrase) continue;
-    // We use split/join to replace all occurrences without regex escaping issues
-    const parts = highlightedText.split(phrase);
-    highlightedText = parts.join(chalk.bgGreen.black(phrase));
+  const allPhrases = [
+    ...supportedPhrases.map(p => ({ text: p, supported: true })),
+    ...unsupportedPhrases.map(p => ({ text: p, supported: false }))
+  ];
+
+  allPhrases.sort((a, b) => b.text.length - a.text.length);
+
+  for (const phrase of allPhrases) {
+    if (!phrase.text) continue;
+    const parts = highlightedText.split(phrase.text);
+    const highlightedPhrase = phrase.supported
+      ? chalk.bgGreen.black(phrase.text)
+      : chalk.red(phrase.text);
+    highlightedText = parts.join(highlightedPhrase);
   }
 
   return highlightedText;
@@ -99,19 +105,17 @@ async function runInteractiveTest() {
       keywordResult.keywords
     );
 
-    console.log(chalk.green("✔ Consistency Check Complete!\n"));
 
-    console.log(chalk.bold("Analysis Result: ") + (consistencyResult.isSupported ? chalk.green("SUPPORTED") : chalk.red("UNSUPPORTED")));
+
     console.log(chalk.gray(`Explanation: ${consistencyResult.explanation}\n`));
 
-    console.log(chalk.bold("Your Reasoning (Supported parts in GREEN):"));
-    const evaluatedReasoning = highlightSupportedText(userReasoning, consistencyResult.supportedText || []);
+    console.log(chalk.bold("Your Reasoning (Supported parts in GREEN, Unsupported in RED):"));
+    const evaluatedReasoning = highlightReasoning(
+      userReasoning,
+      consistencyResult.supportedText || [],
+      consistencyResult.unsupportedText || []
+    );
     console.log(evaluatedReasoning);
-
-    if (consistencyResult.unsupportedText && consistencyResult.unsupportedText.length > 0) {
-      console.log(chalk.red("\nUnsupported / Illogical Phrases Detected:"));
-      consistencyResult.unsupportedText.forEach(t => console.log(chalk.red(`- "${t}"`)));
-    }
 
     console.log(chalk.blue.bold("\n=====================================================================\n"));
 
