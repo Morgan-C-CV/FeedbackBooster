@@ -47,6 +47,11 @@ async function runTest() {
     console.log("\n[Consistency Result]:");
     console.log(JSON.stringify(consistencyResult, null, 2));
 
+    console.log("\n=== Testing Image Reading ===");
+    const imagePath = '/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/src/examples/pics/testimage.png';
+    const imageResult = await (await import('../services/llm.service')).llmService.generateContent("Please describe this image in detail.", [imagePath]);
+    console.log(`[Image Result]:\n${imageResult}`);
+
   } catch (err) {
     console.error("Error during categorization:", err);
   }
