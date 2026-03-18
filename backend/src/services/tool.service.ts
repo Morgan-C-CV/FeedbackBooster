@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI, GenerativeModel, Part, Content, FunctionDeclarationsTool, FunctionCallingMode } from '@google/generative-ai';
 import { llmConfig } from '../config/llm.config';
-import { readFile, readToolDeclaration } from './tools/read.tool';
+import { readFile, readToolDeclaration, MULTIMODAL_PREFIX } from './tools/read.tool';
 import { writeFile, writeToolDeclaration } from './tools/write.tool';
 import { modifyFile, modifyToolDeclaration } from './tools/modify.tool';
+import { llmService } from './llm.service';
 
 // Map of tool name → executor function
 const toolExecutors: Record<string, (args: any) => string> = {
@@ -41,6 +42,11 @@ class ToolService {
    * Runs a prompt with tool access. The LLM can decide to call tools,
    * and results are fed back until a final text response is generated.
    * 
+   * When read_file encounters a multimodal file (PDF, image, audio, video),
+   * it returns a special marker. This method intercepts the marker, uploads
+   * the file via Google's File API, and injects it into the conversation
+   * so the LLM can understand the file natively.
+   * 
    * @param onToolCall - Optional callback fired each time a tool is invoked, for UI display
    */
   async runWithTools(
@@ -52,14 +58,14 @@ class ToolService {
     }
 
     const history: Content[] = [];
-    
+
     // Initial user message
     history.push({
       role: 'user',
       parts: [{ text: prompt }],
     });
 
-    const MAX_ITERATIONS = 10;
+    const MAX_ITERATIONS = 20;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       const result = await this.model.generateContent({
@@ -88,6 +94,7 @@ class ToolService {
 
       // Execute each function call and collect responses
       const functionResponseParts: Part[] = [];
+      const multimodalParts: Part[] = []; // Extra media parts to inject
 
       for (const part of functionCalls) {
         const fc = (part as any).functionCall;
@@ -95,6 +102,8 @@ class ToolService {
         const args = fc.args;
 
         let toolResult: string;
+        let isMultimodal = false;
+
         try {
           const executor = toolExecutors[toolName];
           if (!executor) {
@@ -102,12 +111,31 @@ class ToolService {
           } else {
             toolResult = executor(args);
           }
+
+          // Check if this is a multimodal file marker
+          if (toolResult.startsWith(MULTIMODAL_PREFIX)) {
+            isMultimodal = true;
+            const absolutePath = toolResult.slice(MULTIMODAL_PREFIX.length);
+            const ext = absolutePath.split('.').pop()?.toLowerCase() || '';
+
+            // Upload the file via File API
+            toolResult = `[Uploading ${ext.toUpperCase()} file for multimodal analysis: ${args.path}...]`;
+            
+            if (onToolCall) {
+              onToolCall(toolName, args, toolResult);
+            }
+
+            const mediaPart = await llmService.uploadMediaFile(absolutePath);
+            multimodalParts.push(mediaPart);
+
+            toolResult = `[File "${args.path}" has been uploaded and attached to the conversation. You can now analyze its contents directly.]`;
+          }
         } catch (err: any) {
           toolResult = `Error: ${err.message}`;
         }
 
-        // Notify caller UI if callback provided
-        if (onToolCall) {
+        // Notify caller UI if callback provided (and not already notified for multimodal)
+        if (onToolCall && !isMultimodal) {
           onToolCall(toolName, args, toolResult);
         }
 
@@ -119,10 +147,10 @@ class ToolService {
         } as any);
       }
 
-      // Feed function results back to the model
+      // Feed function results back to the model, with any media parts attached
       history.push({
         role: 'user',
-        parts: functionResponseParts,
+        parts: [...functionResponseParts, ...multimodalParts],
       });
     }
 
@@ -131,3 +159,4 @@ class ToolService {
 }
 
 export const toolService = new ToolService();
+
