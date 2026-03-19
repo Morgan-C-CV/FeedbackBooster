@@ -1,0 +1,172 @@
+[
+  {
+    "conversation_id": "conv_001",
+    "participants": {
+      "A": "Advisor",
+      "B": "Student"
+    },
+    "project": "Multimodal literature review assistant (PDF + figures)",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-03-01T09:10:12+08:00",
+        "sender": "B",
+        "content": "I'd like my thesis project to help read research PDFs (plus key figures) and produce structured notes. My initial scope: upload a paper PDF and a few result figures, then output a short summary, reproduction-oriented method notes, and writing suggestions. Does this sound too broad?"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-01T09:13:02+08:00",
+        "sender": "A",
+        "content": "The direction is reasonable, but you should narrow it. Pick 1–2 core capabilities and define them precisely with inputs and outputs. For example: extract method/dataset/metrics into a comparison table, and generate evidence-linked notes. Define your data sources and evaluation metrics early."
+      },
+      {
+        "type": "file",
+        "time": "2026-03-01T09:18:05+08:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/src/examples/files/proposal_v1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-01T09:19:10+08:00",
+        "sender": "B",
+        "content": "This is my draft proposal. I included a section about auto-generating a full paper draft, but I think that's unrealistic for this project."
+      },
+      {
+        "type": "message",
+        "time": "2026-03-01T09:22:13+08:00",
+        "sender": "A",
+        "content": "Agreed. Avoid 'full draft generation'. A more defensible goal is outline suggestions, paragraph-level rewrites, and citation/evidence alignment checks. You can evaluate field extraction accuracy (against a labeled set), usability of suggestions (human acceptance rate), and evidence alignment error rate."
+      },
+      {
+        "type": "file",
+        "time": "2026-03-01T09:30:10+08:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/src/examples/files/related_work_table.png"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-01T09:31:05+08:00",
+        "sender": "B",
+        "content": "I drafted a related-work comparison table (method / dataset / metrics / key finding). Could the system extract those fields from PDFs and help fill the table automatically?"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-01T09:34:28+08:00",
+        "sender": "A",
+        "content": "That can be your first milestone. Start by defining a fixed table schema and creating a small gold dataset: select about 20 papers in one sub-area and label method, dataset, metrics, and main conclusion. Then compare approaches (rules + LLM vs LLM-only) using field-level precision/recall."
+      },
+      {
+        "type": "message",
+        "time": "2026-03-01T09:38:02+08:00",
+        "sender": "B",
+        "content": "Understood. This week I'll draft the schema and labeling guideline and start annotating a small batch of papers."
+      }
+    ]
+  },
+
+  {
+    "conversation_id": "conv_002",
+    "participants": {
+      "A": "Advisor",
+      "B": "Student"
+    },
+    "project": "Low-resource Chinese scientific summarization and factuality evaluation",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-03-08T14:05:20+08:00",
+        "sender": "B",
+        "content": "I'm considering low-resource Chinese scientific summarization, but I'm worried about data availability. Would a small labeled set plus weak supervision be acceptable?"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-08T14:08:11+08:00",
+        "sender": "A",
+        "content": "Yes. Combine weak labels from open-access papers, transfer learning from English datasets, and a strong factuality evaluation component. Factual consistency checking and correction can be more compelling than only improving ROUGE."
+      },
+      {
+        "type": "file",
+        "time": "2026-03-08T14:12:49+08:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/src/examples/files/annotation_guideline_v0.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-08T14:13:32+08:00",
+        "sender": "B",
+        "content": "Draft guideline: for each summary sentence, annotators link supporting evidence (paragraph, sentence, or figure caption) and label supported / partially supported / unsupported."
+      },
+      {
+        "type": "message",
+        "time": "2026-03-08T14:16:07+08:00",
+        "sender": "A",
+        "content": "Good. Make evidence granularity explicit, and define a reproducible error taxonomy: wrong numbers, wrong entities, wrong relations/causality, and hallucinated conclusions not present in the source."
+      },
+      {
+        "type": "file",
+        "time": "2026-03-08T14:20:55+08:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/src/examples/files/factuality_error_taxonomy.jpg"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-08T14:22:14+08:00",
+        "sender": "B",
+        "content": "Next I want to build a consistency scorer: input = (summary sentence, evidence), output = supported or unsupported. I'd like to treat it as an NLI-style classification problem."
+      },
+      {
+        "type": "message",
+        "time": "2026-03-08T14:26:33+08:00",
+        "sender": "A",
+        "content": "That is a solid baseline. Compare different evidence retrieval strategies and include a learning-curve experiment showing performance versus labeled data size."
+      }
+    ]
+  },
+  
+  {
+    "conversation_id": "conv_003",
+    "participants": {
+      "A": "Advisor",
+      "B": "Student"
+    },
+    "project": "Weekly research report generation from meetings and reading",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-03-15T20:41:03+08:00",
+        "sender": "B",
+        "content": "I'd like to add a practical component: turn our weekly discussion notes and the PDFs we read into a weekly report (progress / issues / next steps), and optionally sync tasks to a project board. Would this be considered too engineering-heavy?"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-15T20:44:18+08:00",
+        "sender": "A",
+        "content": "It can be framed as research if you focus on verifiable extraction and planning. The application is just a demo. The key is a measurable schema, a reproducible dataset (your logs + documents), and clear metrics."
+      },
+      {
+        "type": "file",
+        "time": "2026-03-15T20:49:07+08:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/src/examples/files/meeting_notes_week2.png"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-15T20:50:32+08:00",
+        "sender": "B",
+        "content": "This screenshot includes action items, risks, and paper titles we mentioned. If the system reads text and images, can it extract action items and generate a report template?"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-15T20:54:10+08:00",
+        "sender": "A",
+        "content": "Yes. First, fix the output as a JSON schema (progress, issues, next_actions, owners, deadlines, evidence_links). Then build a two-stage pipeline: extract structured fields from the conversation/image, and generate a natural-language report from those fields. Evaluate extraction with field-level F1 and the report with a small human rating study."
+      },
+      {
+        "type": "message",
+        "time": "2026-03-15T20:57:45+08:00",
+        "sender": "B",
+        "content": "Understood. I'll define the schema in the backend and keep a small set of annotated examples for evaluation."
+      }
+    ]
+  }
+]
