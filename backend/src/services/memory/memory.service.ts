@@ -234,6 +234,88 @@ Provide a structured, feedback-focused summary:
   }
 
   /**
+   * Generates a Short-term memory (Markdown) for a project.
+   *
+   * @param projectPath - Absolute path to the project directory
+   */
+  async createShortTermMemory(projectPath: string): Promise<string> {
+    const memoPath = path.join(projectPath, 'long_term_memo.json');
+    const messagesPath = path.join(projectPath, 'messages.json');
+    const shortTermPath = path.join(projectPath, 'short_term_memo.md');
+
+    if (!fs.existsSync(memoPath)) {
+      throw new Error(`long_term_memo.json not found in ${projectPath}. Please create long-term memory first.`);
+    }
+
+    const memo: LongTermMemo = JSON.parse(fs.readFileSync(memoPath, 'utf-8'));
+    const messages = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+    
+    if (!messages || messages.length === 0) {
+      throw new Error('No conversations found in messages.json');
+    }
+
+    const lastConv = messages[messages.length - 1];
+    const prevConv = messages.length > 1 ? messages[messages.length - 2] : null;
+
+    // 1. Background: Summary of all long-term memory
+    const backgroundPrompt = `
+You are an expert academic research assistant.
+You are given the entire long-term memory of a research project, which includes a "far memory" (compressed older interactions) and several recent "long-term memories" (summaries of previous conversations and file changes).
+
+Your task is to provide a concise yet comprehensive background summary of the project's progress, key decisions, and current status based on this memory.
+
+Long-term Memory:
+"""
+Far Memory: ${memo.farMemory}
+Recent Memories:
+${memo.longTermMemories.map((m, i) => `[Memory ${i+1}]
+File Summary: ${m.fileSummary}
+File Diff: ${m.fileDiff}
+Conversation Summary: ${m.conversationSummary}`).join('\n\n')}
+"""
+
+Provide a well-structured summary (in Markdown) of the project background:
+    `.trim();
+
+    const backgroundSummary = await llmService.generateContent(backgroundPrompt);
+
+    // 2. File Diff: Between last conversation and the one before it
+    let fileDiff = '';
+    const currentFiles = this.extractFilePaths(lastConv);
+    const previousFiles = prevConv ? this.extractFilePaths(prevConv) : [];
+
+    if (currentFiles.length > 0 && previousFiles.length > 0) {
+      fileDiff = await this.calculateFileDiff(currentFiles, previousFiles);
+    } else if (currentFiles.length > 0) {
+      fileDiff = "_No previous files to compare with. These are new files in this conversation._";
+    } else {
+      fileDiff = "_No files were involved in the latest conversation._";
+    }
+
+    // 3. Last Conversation: Plain text
+    const lastConversationText = this.extractConversationText(lastConv);
+
+    // Construct Markdown
+    const markdownContent = `
+# Short-term Research Memory
+
+## 1. Background Summary
+${backgroundSummary}
+
+## 2. File Differences (Latest vs. Previous)
+${fileDiff || '_No significant file differences detected._'}
+
+## 3. Latest Conversation Record
+\`\`\`text
+${lastConversationText || '(No conversation records found)'}
+\`\`\`
+    `.trim();
+
+    fs.writeFileSync(shortTermPath, markdownContent, 'utf-8');
+    return markdownContent;
+  }
+
+  /**
    * Extracts file paths from a conversation object.
    */
   private extractFilePaths(conversation: any): string[] {
