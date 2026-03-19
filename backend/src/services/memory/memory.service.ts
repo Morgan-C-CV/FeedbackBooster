@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import { llmService } from '../llm.service';
 
 /**
@@ -264,26 +265,56 @@ Provide a structured, feedback-focused summary:
   }
 
   /**
-   * Calculates difference between two sets of files using LLM.
+   * Calculates difference between two sets of files using a script tool and LLM.
    */
   private async calculateFileDiff(currentFiles: string[], previousFiles: string[]): Promise<string> {
-    // Find files that are the "same" (e.g. same filename)
     const pairs: [string, string][] = [];
-    for (const curr of currentFiles) {
+
+    // 1. First try exact basename matching
+    const unmatchedCurrent = [...currentFiles];
+    const unmatchedPrevious = [...previousFiles];
+
+    for (let i = unmatchedCurrent.length - 1; i >= 0; i--) {
+      const curr = unmatchedCurrent[i];
       const currName = path.basename(curr);
-      for (const prev of previousFiles) {
-        if (path.basename(prev) === currName) {
-          pairs.push([prev, curr]);
-          break;
+      const prevIdx = unmatchedPrevious.findIndex(p => path.basename(p) === currName);
+      if (prevIdx !== -1) {
+        pairs.push([unmatchedPrevious[prevIdx], curr]);
+        unmatchedCurrent.splice(i, 1);
+        unmatchedPrevious.splice(prevIdx, 1);
+      }
+    }
+
+    // 2. If filenames differ but extensions match (e.g. f1.pdf vs f2.pdf), match them
+    // This handles the sequential versioning of documents.
+    if (unmatchedCurrent.length > 0 && unmatchedPrevious.length > 0) {
+      for (let i = unmatchedCurrent.length - 1; i >= 0; i--) {
+        const curr = unmatchedCurrent[i];
+        const ext = path.extname(curr);
+        const prevIdx = unmatchedPrevious.findIndex(p => path.extname(p) === ext);
+        if (prevIdx !== -1) {
+          pairs.push([unmatchedPrevious[prevIdx], curr]);
+          unmatchedCurrent.splice(i, 1);
+          unmatchedPrevious.splice(prevIdx, 1);
         }
       }
     }
 
     if (pairs.length === 0) return '';
 
-    // For each pair, ask LLM to summarize the difference
     let diffSummary = '';
+    // Correct path to scripts/pdf_diff.py relative to src/services/memory/
+    const scriptPath = path.resolve(__dirname, '../../../scripts/pdf_diff.py');
+
     for (const [prev, curr] of pairs) {
+      let rawDiff = '';
+      try {
+        // Run the script tool to get a rough diff
+        rawDiff = execSync(`python3 "${scriptPath}" "${prev}" "${curr}"`, { encoding: 'utf-8' });
+      } catch (error) {
+        console.error('Error running pdf_diff script:', error);
+      }
+
       const prompt = `
 You are an expert academic research assistant.
 Compare the following two versions of the same document and summarize the key changes, improvements, or additions in the new version.
@@ -291,14 +322,20 @@ Compare the following two versions of the same document and summarize the key ch
 Previous version: ${path.basename(prev)}
 New version: ${path.basename(curr)}
 
-Be specific about what content was updated or added.
+Raw text diff:
+"""
+${rawDiff || '(No text diff available)'}
+"""
+
+Based on the raw diff and the documents, provide a clear, structured summary of what has changed.
       `.trim();
 
       try {
-        const diff = await llmService.generateContent(prompt, [prev, curr]);
-        diffSummary += `Differences in ${path.basename(curr)}:\n${diff}\n\n`;
+        // Use LLM to summarize based on raw diff and files
+        const summary = await llmService.generateContent(prompt, [prev, curr]);
+        diffSummary += `### Differences in ${path.basename(curr)}:\n${summary}\n\n`;
       } catch (error) {
-        console.error('Error calculating file diff:', error);
+        console.error('Error calculating file diff with LLM:', error);
       }
     }
 
