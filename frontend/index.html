@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Agent Interface</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header id="title-bar">
+        <div class="project-info">
+            <span id="project-name">Project: Loading...</span>
+        </div>
+        <div class="status-indicator" id="status-indicator">Idle</div>
+    </header>
+
+    <main id="main-content">
+        <section id="left-panel">
+            <div class="panel-header">File Viewer</div>
+            <div id="file-content" class="content-area">
+                <div class="placeholder">Select a file from conversation to view content</div>
+            </div>
+        </section>
+        <section id="right-panel">
+            <div class="panel-header">Conversation</div>
+            <div id="conversation-area" class="content-area">
+                <!-- Conversations will be injected here -->
+            </div>
+        </section>
+    </main>
+
+    <footer id="interaction-bar">
+        <div id="interaction-step-memory" class="interaction-step active">
+            <div class="step-label">Step A: Memory & Context</div>
+            <div id="short-term-memory-display" class="context-display">Processing memory...</div>
+            <button id="btn-next-step" disabled>Next Step</button>
+        </div>
+
+        <div id="interaction-step-analysis" class="interaction-step">
+            <div class="step-label">Step B: Dual Interpretations</div>
+            <div class="interpretations-container">
+                <div class="interpretation-card" id="task-level-card">
+                    <h3>Task-Level</h3>
+                    <p id="task-level-reasoning"></p>
+                    <button class="btn-select" data-level="Task-Level">Select Task-Level</button>
+                </div>
+                <div class="interpretation-card" id="process-level-card">
+                    <h3>Process-Level</h3>
+                    <p id="process-level-reasoning"></p>
+                    <button class="btn-select" data-level="Process-Level">Select Process-Level</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="interaction-step-reasoning" class="interaction-step">
+            <div class="step-label">Step C: Your Reasoning</div>
+            <div class="reasoning-input-container">
+                <p>You selected: <strong id="selected-level-display"></strong></p>
+                <textarea id="user-reasoning-input" placeholder="Explain why you chose this interpretation..."></textarea>
+                <button id="btn-submit-reasoning">Check Consistency</button>
+            </div>
+        </div>
+
+        <div id="interaction-step-result" class="interaction-step">
+            <div class="step-label">Step D: Consistency Check</div>
+            <div id="consistency-explanation" class="result-text"></div>
+            <div id="evaluated-reasoning" class="highlighted-text"></div>
+            <button id="btn-next-conversation">Next Conversation</button>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
