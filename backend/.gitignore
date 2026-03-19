@@ -10,6 +10,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# conversation files
+projects/*
+
 # OS config
 .DS_Store
 Thumbs.db
