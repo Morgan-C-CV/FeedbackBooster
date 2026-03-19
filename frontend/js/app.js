@@ -20,23 +20,48 @@ const statusIndicator = document.getElementById('status-indicator');
 
 // Interaction steps
 const steps = {
-    memory: document.getElementById('interaction-step-memory'),
+    analysisTrigger: document.getElementById('interaction-step-analysis-trigger'),
     analysis: document.getElementById('interaction-step-analysis'),
     reasoning: document.getElementById('interaction-step-reasoning'),
     result: document.getElementById('interaction-step-result')
 };
 
+// Resizer logic
+const resizer = document.getElementById('resizer');
+const leftPanel = document.getElementById('left-panel');
+let isResizing = false;
+
+resizer.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.removeEventListener('mousemove', handleMouseMove);
+    });
+});
+
+function handleMouseMove(e) {
+    if (!isResizing) return;
+    const newWidth = (e.clientX / window.innerWidth) * 100;
+    if (newWidth > 10 && newWidth < 90) {
+        leftPanel.style.width = `${newWidth}%`;
+    }
+}
+
 // Initialize
 async function init() {
     try {
-        updateStatus('Loading project...', 'busy');
+        updateStatus('Initializing session...', 'busy');
         
+        // Initialize session (backup and clear)
+        await fetch(`${API_URL}/init-session`, { method: 'POST' });
+
         // Get project info
         const projectRes = await fetch(`${API_URL}/project`);
         state.project = await projectRes.json();
         projectNameEl.textContent = `Project: ${state.project.name}`;
 
-        // Get conversations
+        // Get conversations (now reads from backup)
         const convRes = await fetch(`${API_URL}/conversations`);
         state.conversations = await convRes.json();
 
@@ -62,13 +87,18 @@ async function startConversation(index) {
     
     // Clear previous
     conversationArea.innerHTML = '';
-    showStep('memory');
+    // Reset reasoning input
+    const reasoningInput = document.getElementById('user-reasoning-input');
+    if (reasoningInput) reasoningInput.value = '';
+    
+    showStep('analysisTrigger');
+    document.getElementById('btn-start-analysis').disabled = true;
     updateStatus(`Processing Conversation ${index + 1}/${state.conversations.length}`, 'busy');
 
     // Display all messages in the conversation area
     renderConversation(conversation);
 
-    // Step A: Process Memory
+    // Step A: Process Memory (Run in background, no UI display)
     try {
         const memoryRes = await fetch(`${API_URL}/process-memory`, {
             method: 'POST',
@@ -80,9 +110,8 @@ async function startConversation(index) {
         });
         const memoryData = await memoryRes.json();
         state.currentShortTermMemory = memoryData.shortTermMemory;
-        document.getElementById('short-term-memory-display').textContent = state.currentShortTermMemory;
-
-        // Step B: Get File Context
+        
+        // Step B: Get File Context (Run in background)
         const filePaths = extractFilePaths(conversation);
         const contextRes = await fetch(`${API_URL}/file-context`, {
             method: 'POST',
@@ -95,11 +124,11 @@ async function startConversation(index) {
         const contextData = await contextRes.json();
         state.currentFileContext = contextData.fileContext;
 
-        document.getElementById('btn-next-step').disabled = false;
+        document.getElementById('btn-start-analysis').disabled = false;
         updateStatus('Ready for analysis', 'idle');
     } catch (err) {
-        console.error('Memory processing error:', err);
-        updateStatus('Error in memory processing', 'error');
+        console.error('Background processing error:', err);
+        updateStatus('Error in background processing', 'error');
     }
 }
 
@@ -128,21 +157,32 @@ function renderConversation(conversation) {
             msgEl.appendChild(senderSpan);
             msgEl.appendChild(contentDiv);
             conversationArea.appendChild(msgEl);
+        } else if (record.type === 'file') {
+            const fileEl = document.createElement('div');
+            fileEl.className = 'message message-file';
+            fileEl.innerHTML = `<span class="sender-name">System</span><div class="message-content">File attached: <span class="file-link" onclick="loadFile('${record.content}')">${record.content}</span></div>`;
+            conversationArea.appendChild(fileEl);
         }
     });
 }
 
 async function loadFile(path) {
-    try {
-        const res = await fetch(`${API_URL}/file?path=${encodeURIComponent(path)}`);
-        const data = await res.json();
-        if (data.error) {
-            fileContentArea.textContent = `Error loading file: ${data.error}`;
-        } else {
-            fileContentArea.textContent = data.content;
+    const isPdf = path.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+        const url = `${API_URL}/file?path=${encodeURIComponent(path)}`;
+        fileContentArea.innerHTML = `<iframe class="pdf-viewer" src="${url}"></iframe>`;
+    } else {
+        try {
+            const res = await fetch(`${API_URL}/file?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            if (data.error) {
+                fileContentArea.textContent = `Error loading file: ${data.error}`;
+            } else {
+                fileContentArea.innerHTML = `<pre class="content-area">${data.content}</pre>`;
+            }
+        } catch (err) {
+            fileContentArea.textContent = 'Error fetching file content';
         }
-    } catch (err) {
-        fileContentArea.textContent = 'Error fetching file content';
     }
 }
 
@@ -152,7 +192,7 @@ function showStep(stepName) {
 }
 
 // Event Listeners
-document.getElementById('btn-next-step').addEventListener('click', async () => {
+document.getElementById('btn-start-analysis').addEventListener('click', async () => {
     updateStatus('Generating interpretations...', 'busy');
     showStep('analysis');
 
@@ -163,6 +203,7 @@ document.getElementById('btn-next-step').addEventListener('click', async () => {
         .map(r => r.content)
         .join('\n\n') || '';
 
+    // enrichedContext used in backend
     const enrichedContext = [
         state.currentShortTermMemory,
         state.currentFileContext ? `\n## File Context\n${state.currentFileContext}` : ''
@@ -231,18 +272,6 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
 
     updateStatus('Checking consistency...', 'busy');
     
-    const conversation = state.conversations[state.currentIndex];
-    const feedback = extractAdvisorFeedback(conversation);
-    const studentMessages = conversation.records
-        ?.filter(r => r.type === 'message' && r.sender === 'B')
-        .map(r => r.content)
-        .join('\n\n') || '';
-    
-    const enrichedContext = [
-        state.currentShortTermMemory,
-        state.currentFileContext ? `\n## File Context\n${state.currentFileContext}` : ''
-    ].filter(Boolean).join('\n\n');
-
     try {
         const res = await fetch(`${API_URL}/check-consistency`, {
             method: 'POST',
@@ -250,33 +279,22 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
             body: JSON.stringify({
                 userReasoning,
                 selectedInterpretation: state.selectedInterpretation,
-                feedback,
-                studentMessages,
-                keywords: state.currentKeywordResult.keywords,
-                enrichedContext
+                feedback: extractAdvisorFeedback(state.conversations[state.currentIndex]),
+                studentMessages: state.conversations[state.currentIndex].records
+                    ?.filter(r => r.type === 'message' && r.sender === 'B')
+                    .map(r => r.content)
+                    .join('\n\n') || '',
+                keywords: state.currentKeywordResult?.keywordPositions.map(k => k.keyword) || [],
+                enrichedContext: state.currentShortTermMemory + (state.currentFileContext ? `\n\n## File Context\n${state.currentFileContext}` : '')
             })
         });
         const data = await res.json();
         
-        // Update UI
-        document.getElementById('consistency-explanation').textContent = data.explanation;
+        // UI ONLY shows the highlighted result, not the explanation
+        document.getElementById('evaluated-reasoning').innerHTML = data.highlightedReasoning;
         
-        // Highlight reasoning
-        let highlightedReasoning = userReasoning;
-        const allPhrases = [
-            ...(data.supportedText || []).map(p => ({ text: p, supported: true })),
-            ...(data.unsupportedText || []).map(p => ({ text: p, supported: false }))
-        ].sort((a, b) => b.text.length - a.text.length);
-
-        allPhrases.forEach(phrase => {
-            const regex = new RegExp(`(${escapeRegExp(phrase.text)})`, 'gi');
-            const className = phrase.supported ? 'supported-text' : 'unsupported-text';
-            highlightedReasoning = highlightedReasoning.replace(regex, `<span class="${className}">$1</span>`);
-        });
-
-        document.getElementById('evaluated-reasoning').innerHTML = highlightedReasoning;
         showStep('result');
-        updateStatus('Consistency check complete', 'idle');
+        updateStatus('Check complete', 'idle');
     } catch (err) {
         console.error('Consistency check error:', err);
         updateStatus('Error in consistency check', 'error');
@@ -286,9 +304,6 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
 document.getElementById('btn-next-conversation').addEventListener('click', () => {
     if (state.currentIndex < state.conversations.length - 1) {
         startConversation(state.currentIndex + 1);
-        // Reset inputs
-        document.getElementById('user-reasoning-input').value = '';
-        document.getElementById('btn-next-step').disabled = true;
     } else {
         alert('All conversations completed!');
     }

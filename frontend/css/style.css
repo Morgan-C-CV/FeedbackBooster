@@ -38,13 +38,42 @@ body {
     overflow: hidden;
 }
 
-#left-panel, #right-panel {
+#left-panel {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--panel-bg);
+}
+
+#right-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border-color);
     background-color: var(--panel-bg);
 }
+
+#resizer {
+    width: 8px;
+    background-color: var(--border-color);
+    cursor: col-resize;
+    transition: background-color 0.2s;
+}
+
+#resizer:hover {
+    background-color: var(--primary-color);
+}
+
+#file-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+.pdf-viewer {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
 
 .panel-header {
     background-color: #f1f5f9;
@@ -159,12 +188,42 @@ button:disabled {
     opacity: 0.5;
 }
 
+.hint-text {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.box-green {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: #dcfce7;
+    border: 1px solid #22c55e;
+}
+
+.text-red {
+    color: #ef4444;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
 .highlighted-text {
-    padding: 0.5rem;
+    padding: 15px;
+    background-color: #f8fafc;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    background-color: #ffffff;
-    font-size: 0.9rem;
+    min-height: 50px;
+    margin-bottom: 15px;
     line-height: 1.6;
 }
 
@@ -201,6 +260,12 @@ button:disabled {
 .message-B {
     background-color: #f0fdf4;
     border-left: 4px solid #22c55e;
+}
+
+.message-file {
+    background-color: #fef9c3;
+    border-left: 4px solid #eab308;
+    font-style: italic;
 }
 
 .sender-name {

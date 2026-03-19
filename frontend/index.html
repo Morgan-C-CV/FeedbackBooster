@@ -21,6 +21,7 @@
                 <div class="placeholder">Select a file from conversation to view content</div>
             </div>
         </section>
+        <div id="resizer"></div>
         <section id="right-panel">
             <div class="panel-header">Conversation</div>
             <div id="conversation-area" class="content-area">
@@ -30,10 +31,11 @@
     </main>
 
     <footer id="interaction-bar">
-        <div id="interaction-step-memory" class="interaction-step active">
-            <div class="step-label">Step A: Memory & Context</div>
-            <div id="short-term-memory-display" class="context-display">Processing memory...</div>
-            <button id="btn-next-step" disabled>Next Step</button>
+        <!-- Step A: Analysis Trigger (Memory runs in background) -->
+        <div id="interaction-step-analysis-trigger" class="interaction-step active">
+            <div class="step-label">Ready for Analysis</div>
+            <p>Memory processing and file context retrieval are completed in the background. Click below to start the feedback analysis.</p>
+            <button id="btn-start-analysis" disabled>Start Analysis</button>
         </div>
 
         <div id="interaction-step-analysis" class="interaction-step">
@@ -63,7 +65,10 @@
 
         <div id="interaction-step-result" class="interaction-step">
             <div class="step-label">Step D: Consistency Check</div>
-            <div id="consistency-explanation" class="result-text"></div>
+            <div id="consistency-legend" class="hint-text">
+                <span class="legend-item"><span class="box-green"></span> Consistent Reasoning</span>
+                <span class="legend-item"><span class="text-red">Red Text</span>: Inconsistent or Irrelevant</span>
+            </div>
             <div id="evaluated-reasoning" class="highlighted-text"></div>
             <button id="btn-next-conversation">Next Conversation</button>
         </div>

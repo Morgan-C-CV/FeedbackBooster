@@ -1,0 +1,36 @@
+[
+  {
+    "conversation_id": "round_01_initial_proposal",
+    "participants": {
+      "A": "Advisor",
+      "B": "Student"
+    },
+    "project": "Adaptive Contrastive Learning for Low-Resource Scientific Entity Linking",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-03-20T10:00:00+08:00",
+        "sender": "B",
+        "content": "Professor, I've drafted my first research proposal. I'm interested in building a universal system for scientific entity linking using multimodal features. Attached is the initial draft."
+      },
+      {
+        "type": "file",
+        "time": "2026-03-20T10:01:15+08:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project01/files/f1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-20T14:30:45+08:00",
+        "sender": "A",
+        "content": "I've looked at f1.pdf. The scope is far too broad. 'Universal' systems for 'all scientific domains' are rarely successful as research projects because you can't evaluate them properly. You need to narrow this down to a specific domain where low-resource data is a real bottleneck—like rare diseases in Biomedicine or niche Material Science topics. Also, your mention of 'multimodal' is vague. Are you actually using figures, or just metadata?"
+      },
+      {
+        "type": "message",
+        "time": "2026-03-20T14:45:12+08:00",
+        "sender": "B",
+        "content": "I see. I was trying to be ambitious, but I understand the evaluation problem. I'll focus on the Biomedical domain and clarify the multimodal aspect—I intended to use chemical structure diagrams as an additional modality."
+      }
+    ]
+  }
+]

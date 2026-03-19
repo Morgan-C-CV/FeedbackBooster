@@ -14,9 +14,40 @@ app.use(express.json());
 
 // Helper to resolve project path
 const getProjectPath = (req: express.Request) => {
-  const projectPath = req.query.projectPath as string || path.resolve(__dirname, '../../projects/project01');
+  const projectPath = req.query.projectPath as string || path.resolve(__dirname, '../projects/project01');
   return path.resolve(projectPath);
 };
+
+// 0. Initialize session (Backup and clear memory)
+app.post('/api/init-session', (req, res) => {
+  try {
+    const projectPath = getProjectPath(req);
+    const messagesPath = path.join(projectPath, 'messages.json');
+    const memoPath = path.join(projectPath, 'long_term_memo.json');
+    const shortTermPath = path.join(projectPath, 'short_term_memo.md');
+
+    const messagesBackupPath = path.join(projectPath, 'messages.json.bak');
+    const memoBackupPath = path.join(projectPath, 'long_term_memo.json.bak');
+    const shortTermBackupPath = path.join(projectPath, 'short_term_memo.md.bak');
+
+    if (!fs.existsSync(messagesPath)) {
+      return res.status(404).json({ error: 'messages.json not found' });
+    }
+
+    // Backup
+    fs.copyFileSync(messagesPath, messagesBackupPath);
+    if (fs.existsSync(memoPath)) fs.copyFileSync(memoPath, memoBackupPath);
+    if (fs.existsSync(shortTermPath)) fs.copyFileSync(shortTermPath, shortTermBackupPath);
+
+    // Clear current state
+    if (fs.existsSync(memoPath)) fs.unlinkSync(memoPath);
+    if (fs.existsSync(shortTermPath)) fs.unlinkSync(shortTermPath);
+
+    res.json({ message: 'Session initialized and files backed up' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // 1. Get project info
 app.get('/api/project', (req, res) => {
@@ -30,11 +61,16 @@ app.get('/api/project', (req, res) => {
 // 2. Get conversations
 app.get('/api/conversations', (req, res) => {
   const projectPath = getProjectPath(req);
+  const messagesBackupPath = path.join(projectPath, 'messages.json.bak');
   const messagesPath = path.join(projectPath, 'messages.json');
-  if (!fs.existsSync(messagesPath)) {
+  
+  // Always read from the backup if it exists to get the "full" history
+  const pathToRead = fs.existsSync(messagesBackupPath) ? messagesBackupPath : messagesPath;
+  
+  if (!fs.existsSync(pathToRead)) {
     return res.status(404).json({ error: 'messages.json not found' });
   }
-  const history = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+  const history = JSON.parse(fs.readFileSync(pathToRead, 'utf-8'));
   res.json(history);
 });
 
@@ -44,30 +80,55 @@ app.post('/api/process-memory', async (req, res) => {
     const { projectPath, conversationIndex } = req.body;
     const resolvedPath = path.resolve(projectPath);
     const messagesPath = path.join(resolvedPath, 'messages.json');
+    const messagesBackupPath = path.join(resolvedPath, 'messages.json.bak');
     const memoPath = path.join(resolvedPath, 'long_term_memo.json');
 
-    // Simulate incremental upload as in feedback-agent.ts
-    const fullHistory = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+    // Load full history from backup
+    if (!fs.existsSync(messagesBackupPath)) {
+      throw new Error('Backup not found. Please initialize session first.');
+    }
+    const fullHistory = JSON.parse(fs.readFileSync(messagesBackupPath, 'utf-8'));
     const currentHistory = fullHistory.slice(0, conversationIndex + 1);
     
-    // We don't actually overwrite the original messages.json for the API
-    // but we can pass the data to services if needed. 
-    // For now, let's assume services read from messages.json.
-    // To match feedback-agent.ts behavior exactly, we'd need to handle this carefully.
+    // OVERWRITE messages.json with partial history to match feedback-agent.ts logic
+    fs.writeFileSync(messagesPath, JSON.stringify(currentHistory, null, 2), 'utf-8');
     
     // Create/Update long-term memory
+    console.log(`[Memory] Processing memory for conversation ${conversationIndex}...`);
     if (!fs.existsSync(memoPath)) {
+      console.log(`[Memory] Creating long-term memory at ${memoPath}`);
       await memoryService.createLongTermMemory(resolvedPath);
     } else {
+      console.log(`[Memory] Updating long-term memory at ${memoPath}`);
       await memoryService.updateLongTermMemory(resolvedPath);
     }
 
+    console.log(`[Memory] Creating short-term memory...`);
     const shortTermMemory = await memoryService.createShortTermMemory(resolvedPath);
+    console.log(`[Memory] Short-term memory created successfully.`);
     res.json({ shortTermMemory });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Restore backup on exit or manually
+app.post('/api/restore-session', (req, res) => {
+  try {
+    const projectPath = getProjectPath(req);
+    const messagesPath = path.join(projectPath, 'messages.json');
+    const messagesBackupPath = path.join(projectPath, 'messages.json.bak');
+    // ... similarly for others
+    if (fs.existsSync(messagesBackupPath)) {
+      fs.copyFileSync(messagesBackupPath, messagesPath);
+      fs.unlinkSync(messagesBackupPath);
+    }
+    res.json({ message: 'Backup restored' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // 4. File context retrieval (Step B)
 app.post('/api/file-context', async (req, res) => {
@@ -90,9 +151,11 @@ ${filePathsRelative.map((f: string) => `- ${f}`).join('\n')}
 
 For each file, use the read_file tool to access it, then provide a brief summary focusing on the research content, methodology, and key arguments.`;
 
+    console.log(`[FileContext] Retrieving context for ${filePaths.length} files...`);
     const fileContext = await toolService.runWithTools(toolPrompt, (toolName, args, result) => {
-      console.log(`Tool: ${toolName}, Path: ${args.path}`);
+      console.log(`[FileContext] Tool: ${toolName}, Path: ${args.path}`);
     });
+    console.log(`[FileContext] Retrieval completed.`);
 
     res.json({ fileContext });
   } catch (error: any) {
@@ -125,7 +188,32 @@ app.post('/api/check-consistency', async (req, res) => {
       keywords,
       enrichedContext
     );
-    res.json(result);
+
+    // Helper to escape regex special characters
+    const escapeRegExp = (string: string) => {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    // Generate highlightedReasoning on the backend
+    let highlightedReasoning = userReasoning;
+    
+    // Sort by length descending to avoid nested replacement issues
+    const allPhrases = [
+      ...(result.supportedText || []).map(p => ({ text: p, supported: true })),
+      ...(result.unsupportedText || []).map(p => ({ text: p, supported: false }))
+    ].sort((a, b) => b.text.length - a.text.length);
+
+    allPhrases.forEach(phrase => {
+      if (!phrase.text) return;
+      const regex = new RegExp(`(${escapeRegExp(phrase.text)})`, 'gi');
+      const className = phrase.supported ? 'supported-text' : 'unsupported-text';
+      highlightedReasoning = highlightedReasoning.replace(regex, `<span class="${className}">$1</span>`);
+    });
+
+    res.json({
+      ...result,
+      highlightedReasoning
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -137,6 +225,11 @@ app.get('/api/file', (req, res) => {
   if (!filePath) return res.status(400).json({ error: 'Path required' });
   
   try {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.sendFile(filePath);
+    }
     const content = fs.readFileSync(filePath, 'utf-8');
     res.json({ content });
   } catch (error: any) {
