@@ -62,7 +62,13 @@ class FeedbackService {
     return positions;
   }
 
-  async extractKeywords(text: string, originalContent: string): Promise<KeywordExtractionResult> {
+  async extractKeywords(text: string, originalContent: string, additionalContext?: string): Promise<KeywordExtractionResult> {
+    const contextBlock = additionalContext ? `
+      Additional Background Context (short-term memory):
+      """
+      ${additionalContext}
+      """` : '';
+
     const prompt = `
       You are an expert academic research mentor analyzing feedback given to junior PhD & Masters students.
       Your EXTRACT ONLY task is strictly to pull out keywords or key phrases from the provided feedback that could relate to evaluation.
@@ -83,6 +89,7 @@ class FeedbackService {
 
       Original content:
       "${originalContent}"
+      ${contextBlock}
     `;
 
     try {
@@ -110,7 +117,13 @@ class FeedbackService {
    * @param originalContent The original paper content that the feedback refers to
    * @returns Detailed Task-level and Process-level interpretations
    */
-  async generateDualInterpretations(text: string, originalContent: string): Promise<DualInterpretationResult> {
+  async generateDualInterpretations(text: string, originalContent: string, additionalContext?: string): Promise<DualInterpretationResult> {
+    const contextBlock = additionalContext ? `
+      Additional Background Context (short-term memory):
+      """
+      ${additionalContext}
+      """` : '';
+
     const prompt = `
       You are an expert academic research mentor capable of deeply analyzing feedback given to junior PhD & Masters students.
       Your task is to provide TWO mutually exclusive, well-reasoned interpretations for the following feedback.
@@ -138,6 +151,7 @@ class FeedbackService {
 
       Original content:
       "${originalContent}"
+      ${contextBlock}
     `;
 
     try {
@@ -178,8 +192,15 @@ class FeedbackService {
     selectedInterpretation: string,
     originalFeedback: string,
     originalContent: string,
-    extractedKeywords: string[]
+    extractedKeywords: string[],
+    additionalContext?: string
   ): Promise<ReasoningConsistencyResult> {
+    const contextBlock = additionalContext ? `
+      Additional Background Context (short-term memory):
+      """
+      ${additionalContext}
+      """` : '';
+
     const prompt = `
       You are an expert academic research mentor evaluating a student's reasoning for classifying feedback.
       The student has classified the feedback as "${selectedInterpretation}".
@@ -208,6 +229,7 @@ class FeedbackService {
 
       Original Content:
       "${originalContent}"
+      ${contextBlock}
     `;
 
     try {
