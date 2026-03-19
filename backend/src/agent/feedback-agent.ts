@@ -117,15 +117,16 @@ function extractConversationText(conversation: any): string {
 /**
  * Feedback Agent — Memory-Aware Interactive CLI
  *
- * Flow:
- * 1. Load messages.json, process conversations one-by-one (memory pipeline).
- * 2. After all conversations are processed, display short-term memory.
- * 3. Use toolService to let LLM access original files for richer context.
- * 4. Run feedback analysis on the latest advisor feedback:
+ * Flow (per conversation):
+ * 1. Process memory (create/update long-term → build short-term).
+ * 2. Display short-term memory as context.
+ * 3. Use toolService to access referenced files for richer context.
+ * 4. Run feedback analysis on the current conversation's advisor feedback:
  *    - Keyword extraction & highlighting
  *    - Dual interpretations (Task-Level vs Process-Level)
  *    - User selection & reasoning input
  *    - Consistency check & highlighting
+ * 5. Wait for user to press Enter, then proceed to the next conversation.
  */
 export async function runFeedbackAgent(projectPath: string) {
   const messagesPath = path.join(projectPath, 'messages.json');
@@ -151,9 +152,7 @@ export async function runFeedbackAgent(projectPath: string) {
   if (fs.existsSync(memoPath)) fs.copyFileSync(memoPath, memoBackupPath);
   if (fs.existsSync(shortTermPath)) fs.copyFileSync(shortTermPath, shortTermBackupPath);
 
-  console.log(chalk.gray(`Loaded ${fullHistory.length} conversations.`));
-
-  let shortTermMemory = '';
+  console.log(chalk.gray(`Loaded ${fullHistory.length} conversations.\n`));
 
   try {
     // 2. Clear current state for fresh processing
@@ -161,12 +160,18 @@ export async function runFeedbackAgent(projectPath: string) {
     if (fs.existsSync(shortTermPath)) fs.unlinkSync(shortTermPath);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // PHASE 1: Memory Pipeline (from simulation-test.ts)
+    // Main Loop: Process each conversation one-by-one
     // ═══════════════════════════════════════════════════════════════════════
-    console.log(chalk.cyan.bold('\n--- Phase 1: Processing Memory Pipeline ---\n'));
-
     for (let i = 0; i < fullHistory.length; i++) {
-      console.log(chalk.gray(`  Processing Conversation #${i + 1} / ${fullHistory.length}...`));
+      const currentConversation = fullHistory[i];
+      const convId = currentConversation.conversation_id || `#${i + 1}`;
+
+      console.log(chalk.blue.bold(`\n╔══════════════════════════════════════════════════════════════════╗`));
+      console.log(chalk.blue.bold(`║  Conversation ${i + 1} / ${fullHistory.length}: ${convId}`));
+      console.log(chalk.blue.bold(`╚══════════════════════════════════════════════════════════════════╝\n`));
+
+      // ─── Step A: Memory Processing ──────────────────────────────────────
+      console.log(chalk.cyan('  [Memory] Processing...'));
 
       // Simulate partial messages.json (incremental upload)
       const currentHistory = fullHistory.slice(0, i + 1);
@@ -183,39 +188,29 @@ export async function runFeedbackAgent(projectPath: string) {
 
       // Build Short-term Memory
       console.log(chalk.gray('    → Building Short-term Memory...'));
-      shortTermMemory = await memoryService.createShortTermMemory(projectPath);
-      console.log(chalk.green(`    ✓ Conversation #${i + 1} processed.`));
-    }
+      const shortTermMemory = await memoryService.createShortTermMemory(projectPath);
+      console.log(chalk.green('    ✓ Memory processed.\n'));
 
-    console.log(chalk.green.bold('\n  ✓ Memory pipeline complete.\n'));
+      // Display short-term memory
+      console.log(chalk.cyan('  [Context] Short-term Memory:\n'));
+      console.log(chalk.gray(shortTermMemory));
+      console.log('\n');
 
-    // Display short-term memory
-    console.log(chalk.cyan.bold('--- Short-term Memory (Context for Analysis) ---\n'));
-    console.log(chalk.gray(shortTermMemory));
-    console.log('\n');
+      // ─── Step B: Tool-Augmented File Context ────────────────────────────
+      const referencedFiles = extractFilePaths(currentConversation);
+      let fileContext = '';
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // PHASE 2: Context Retrieval via Tool Service
-    // ═══════════════════════════════════════════════════════════════════════
-    console.log(chalk.cyan.bold('--- Phase 2: Retrieving File Context via Tools ---\n'));
+      if (referencedFiles.length > 0) {
+        console.log(chalk.cyan('  [Tools] Retrieving file context...'));
+        const fileList = referencedFiles.map(f => path.basename(f)).join(', ');
+        console.log(chalk.gray(`    Files: ${fileList}\n`));
 
-    const lastConversation = fullHistory[fullHistory.length - 1];
-    const referencedFiles = extractFilePaths(lastConversation);
-    let fileContext = '';
+        const filePathsRelative = referencedFiles.map(f => {
+          const projectRoot = path.resolve(projectPath, '../..');
+          return path.relative(projectRoot, f);
+        });
 
-    if (referencedFiles.length > 0) {
-      const fileList = referencedFiles.map(f => path.basename(f)).join(', ');
-      console.log(chalk.gray(`  Files referenced in latest conversation: ${fileList}`));
-      console.log(chalk.gray('  Using tool service to read and analyze files...\n'));
-
-      // Build a prompt for the LLM to read each file and produce a summary
-      const filePathsRelative = referencedFiles.map(f => {
-        // Convert absolute path to relative from project root
-        const projectRoot = path.resolve(projectPath, '../..');
-        return path.relative(projectRoot, f);
-      });
-
-      const toolPrompt = `You are analyzing research project files for context. 
+        const toolPrompt = `You are analyzing research project files for context. 
 Please read the following files and provide a concise summary of each file's content that would be relevant for understanding academic feedback:
 
 Files to read:
@@ -223,120 +218,127 @@ ${filePathsRelative.map(f => `- ${f}`).join('\n')}
 
 For each file, use the read_file tool to access it, then provide a brief summary focusing on the research content, methodology, and key arguments.`;
 
-      try {
-        fileContext = await toolService.runWithTools(
-          toolPrompt,
-          (toolName, args, result) => {
-            console.log(chalk.yellow(`  🔨 Tool: ${chalk.bold(toolName)}`));
-            console.log(chalk.gray(`     Path: ${args.path || '(n/a)'}`));
-            const displayResult = result.length > 200
-              ? result.substring(0, 200) + `... (${result.length} chars)`
-              : result;
-            console.log(chalk.gray(`     Result: ${displayResult}\n`));
-          }
-        );
-        console.log(chalk.green('  ✓ File context retrieved.\n'));
-      } catch (err: any) {
-        console.log(chalk.yellow(`  ⚠ Could not retrieve file context: ${err.message}\n`));
+        try {
+          fileContext = await toolService.runWithTools(
+            toolPrompt,
+            (toolName, args, result) => {
+              console.log(chalk.yellow(`    🔨 Tool: ${chalk.bold(toolName)}`));
+              console.log(chalk.gray(`       Path: ${args.path || '(n/a)'}`));
+              const displayResult = result.length > 200
+                ? result.substring(0, 200) + `... (${result.length} chars)`
+                : result;
+              console.log(chalk.gray(`       Result: ${displayResult}\n`));
+            }
+          );
+          console.log(chalk.green('    ✓ File context retrieved.\n'));
+        } catch (err: any) {
+          console.log(chalk.yellow(`    ⚠ Could not retrieve file context: ${err.message}\n`));
+        }
       }
-    } else {
-      console.log(chalk.gray('  No files referenced in the latest conversation.\n'));
+
+      // ─── Step C: Feedback Analysis ──────────────────────────────────────
+      const feedback = extractAdvisorFeedback(currentConversation);
+      const conversationText = extractConversationText(currentConversation);
+
+      if (!feedback) {
+        console.log(chalk.yellow('  No advisor feedback found in this conversation. Skipping analysis.\n'));
+        if (i < fullHistory.length - 1) {
+          await waitForKeyPress(chalk.gray('  Press [Enter] to proceed to the next conversation...'));
+        }
+        continue;
+      }
+
+      // Build enriched context: short-term memory + file context
+      const enrichedContext = [
+        shortTermMemory,
+        fileContext ? `\n## File Context\n${fileContext}` : ''
+      ].filter(Boolean).join('\n\n');
+
+      // Student's messages as the "original content"
+      const studentMessages = currentConversation.records
+        ?.filter((r: any) => r.type === 'message' && r.sender === 'B')
+        .map((r: any) => r.content)
+        .join('\n\n') || conversationText;
+
+      // Display
+      console.log(chalk.cyan('  [Analysis] Interactive Feedback Analysis\n'));
+
+      console.log(chalk.gray('  --- Conversation ---\n'));
+      console.log(chalk.gray('  ' + conversationText.split('\n').join('\n  ')));
+      console.log('\n');
+
+      console.log(chalk.white('  --- Advisor Feedback ---\n'));
+      console.log(chalk.bold('  ' + feedback.split('\n').join('\n  ')));
+      console.log('\n');
+
+      // Step 1: Keyword Extraction
+      console.log(chalk.blue('  Extracting keywords from feedback...'));
+      const keywordResult = await feedbackService.extractKeywords(feedback, studentMessages, enrichedContext);
+
+      console.log(chalk.green('  Keywords Extracted:\n'));
+      const highlightedFeedback = highlightKeywords(feedback, keywordResult.keywordPositions || []);
+      console.log('  ' + highlightedFeedback);
+      console.log('\n');
+
+      // Step 2: Dual Interpretations
+      console.log(chalk.blue('  Generating Dual Interpretations...'));
+      const dualResult = await feedbackService.generateDualInterpretations(feedback, studentMessages, enrichedContext);
+
+      console.log(chalk.bold('  Task-Level Interpretation: ') + dualResult.taskLevelInterpretation.reasoning + '\n');
+      console.log(chalk.bold('  Process-Level Interpretation: ') + dualResult.processLevelInterpretation.reasoning + '\n');
+
+      // Step 3: User Selection
+      const selectPrompt = new Select({
+        name: 'interpretation',
+        message: 'Based on the context, which level do you think this feedback belongs to?',
+        choices: [
+          { name: 'Task-Level', message: 'Task-Level' },
+          { name: 'Process-Level', message: 'Process-Level' }
+        ]
+      });
+
+      const answer = await selectPrompt.run();
+
+      console.log('\n');
+      console.log(chalk.cyan(`  You selected: ${answer}`));
+
+      // Step 4: User Reasoning
+      const reasonPrompt = new Input({
+        message: `Why did you choose ${answer} over the other option? Please provide your reasoning:\n`,
+      });
+
+      const userReasoning = await reasonPrompt.run();
+
+      // Step 5: Consistency Check
+      console.log('\n' + chalk.blue(`  Checking consistency of your reasoning against the ${answer} context...`));
+
+      const consistencyResult = await feedbackService.checkReasoningConsistency(
+        userReasoning,
+        answer,
+        feedback,
+        studentMessages,
+        keywordResult.keywords,
+        enrichedContext
+      );
+
+      console.log(chalk.gray(`  Explanation: ${consistencyResult.explanation}\n`));
+
+      console.log(chalk.bold('  Your Reasoning (Supported parts in GREEN, Unsupported in RED):'));
+      const evaluatedReasoning = highlightReasoning(
+        userReasoning,
+        consistencyResult.supportedText || [],
+        consistencyResult.unsupportedText || []
+      );
+      console.log('  ' + evaluatedReasoning);
+
+      // ─── End of conversation ────────────────────────────────────────────
+      if (i < fullHistory.length - 1) {
+        console.log(chalk.blue.bold(`\n  ─── Conversation ${i + 1} complete ───\n`));
+        await waitForKeyPress(chalk.cyan('  Press [Enter] to proceed to the next conversation...'));
+      } else {
+        console.log(chalk.green.bold(`\n  ✓ All ${fullHistory.length} conversations processed.\n`));
+      }
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // PHASE 3: Feedback Analysis (from interactive-cli.ts)
-    // ═══════════════════════════════════════════════════════════════════════
-    console.log(chalk.cyan.bold('--- Phase 3: Interactive Feedback Analysis ---\n'));
-
-    // Extract feedback and original content from the last conversation
-    const feedback = extractAdvisorFeedback(lastConversation);
-    const conversationText = extractConversationText(lastConversation);
-
-    if (!feedback) {
-      console.log(chalk.yellow('No advisor feedback found in the latest conversation.'));
-      return;
-    }
-
-    // Build enriched context: short-term memory + file context
-    const enrichedContext = [
-      shortTermMemory,
-      fileContext ? `\n## File Context\n${fileContext}` : ''
-    ].filter(Boolean).join('\n\n');
-
-    // The "original content" for analysis — the student's message in the latest conversation
-    const studentMessages = lastConversation.records
-      ?.filter((r: any) => r.type === 'message' && r.sender === 'B')
-      .map((r: any) => r.content)
-      .join('\n\n') || conversationText;
-
-    // Display what we're analyzing
-    console.log(chalk.gray('--- Latest Conversation ---\n'));
-    console.log(chalk.gray(conversationText));
-    console.log('\n');
-
-    console.log(chalk.white('--- Advisor Feedback ---\n'));
-    console.log(chalk.bold(feedback));
-    console.log('\n');
-
-    // Step 1: Keyword Extraction
-    console.log(chalk.blue('Extracting keywords from feedback...'));
-    const keywordResult = await feedbackService.extractKeywords(feedback, studentMessages, enrichedContext);
-
-    console.log(chalk.green('Keywords Extracted:\n'));
-    const highlightedFeedback = highlightKeywords(feedback, keywordResult.keywordPositions || []);
-    console.log(highlightedFeedback);
-    console.log('\n');
-
-    // Step 2: Dual Interpretations
-    console.log(chalk.blue('Generating Dual Interpretations...'));
-    const dualResult = await feedbackService.generateDualInterpretations(feedback, studentMessages, enrichedContext);
-
-    console.log(chalk.bold('Task-Level Interpretation: ') + dualResult.taskLevelInterpretation.reasoning + '\n');
-    console.log(chalk.bold('Process-Level Interpretation: ') + dualResult.processLevelInterpretation.reasoning + '\n');
-
-    // Step 3: User Selection
-    const prompt = new Select({
-      name: 'interpretation',
-      message: 'Based on the context, which level do you think this feedback belongs to?',
-      choices: [
-        { name: 'Task-Level', message: 'Task-Level' },
-        { name: 'Process-Level', message: 'Process-Level' }
-      ]
-    });
-
-    const answer = await prompt.run();
-
-    console.log('\n');
-    console.log(chalk.cyan(`You selected: ${answer}`));
-
-    // Step 4: User Reasoning
-    const reasonPrompt = new Input({
-      message: `Why did you choose ${answer} over the other option? Please provide your reasoning:\n`,
-    });
-
-    const userReasoning = await reasonPrompt.run();
-
-    // Step 5: Consistency Check
-    console.log('\n' + chalk.blue(`Checking consistency of your reasoning against the ${answer} context...`));
-
-    const consistencyResult = await feedbackService.checkReasoningConsistency(
-      userReasoning,
-      answer,
-      feedback,
-      studentMessages,
-      keywordResult.keywords,
-      enrichedContext
-    );
-
-    console.log(chalk.gray(`Explanation: ${consistencyResult.explanation}\n`));
-
-    console.log(chalk.bold('Your Reasoning (Supported parts in GREEN, Unsupported in RED):'));
-    const evaluatedReasoning = highlightReasoning(
-      userReasoning,
-      consistencyResult.supportedText || [],
-      consistencyResult.unsupportedText || []
-    );
-    console.log(evaluatedReasoning);
 
     console.log(chalk.blue.bold('\n=====================================================================\n'));
 
