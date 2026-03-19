@@ -11,7 +11,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # conversation files
-projects/*
+# projects/*
 
 # OS config
 .DS_Store
