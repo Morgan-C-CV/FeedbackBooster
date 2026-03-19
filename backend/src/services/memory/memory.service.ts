@@ -1,4 +1,23 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { llmService } from '../llm.service';
+
+/**
+ * LongTermMemory record for a single conversation
+ */
+export interface LongTermMemory {
+  fileSummary: string;
+  fileDiff: string;
+  conversationSummary: string;
+}
+
+/**
+ * LongTermMemo structure for the JSON file
+ */
+export interface LongTermMemo {
+  farMemory: string;
+  longTermMemories: LongTermMemory[];
+}
 
 /**
  * MemoryService provides LLM-powered functions for:
@@ -91,6 +110,199 @@ Provide a structured, feedback-focused summary:
       console.error('Error summarizing feedback conversation:', error);
       throw new Error('Failed to summarize feedback conversation.');
     }
+  }
+
+  /**
+   * Initializes long-term memory for a project based on its first conversation.
+   *
+   * @param projectPath - Absolute path to the project directory
+   */
+  async createLongTermMemory(projectPath: string): Promise<void> {
+    const messagesPath = path.join(projectPath, 'messages.json');
+    const memoPath = path.join(projectPath, 'long_term_memo.json');
+
+    if (!fs.existsSync(messagesPath)) {
+      throw new Error(`messages.json not found in ${projectPath}`);
+    }
+
+    const messages = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+    if (!messages || messages.length === 0) {
+      throw new Error('No conversations found in messages.json');
+    }
+
+    // Process the first conversation
+    const firstConv = messages[0];
+    const filePaths = this.extractFilePaths(firstConv);
+    const convText = this.extractConversationText(firstConv);
+
+    let fileSummary = '';
+    if (filePaths.length > 0) {
+      fileSummary = await this.summarizeDocument(filePaths);
+    }
+
+    const conversationSummary = await this.summarizeFeedbackConversation(convText, '');
+
+    const newMemo: LongTermMemo = {
+      farMemory: '',
+      longTermMemories: [
+        {
+          fileSummary,
+          fileDiff: '',
+          conversationSummary,
+        },
+      ],
+    };
+
+    fs.writeFileSync(memoPath, JSON.stringify(newMemo, null, 2), 'utf-8');
+  }
+
+  /**
+   * Updates long-term memory with the latest conversation from the project.
+   *
+   * @param projectPath - Absolute path to the project directory
+   */
+  async updateLongTermMemory(projectPath: string): Promise<void> {
+    const messagesPath = path.join(projectPath, 'messages.json');
+    const memoPath = path.join(projectPath, 'long_term_memo.json');
+
+    if (!fs.existsSync(messagesPath)) {
+      throw new Error(`messages.json not found in ${projectPath}`);
+    }
+
+    const messages = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+    if (!messages || messages.length === 0) {
+      throw new Error('No conversations found in messages.json');
+    }
+
+    // Use the latest conversation
+    const currentConv = messages[messages.length - 1];
+    const previousConv = messages.length > 1 ? messages[messages.length - 2] : null;
+
+    const currentFiles = this.extractFilePaths(currentConv);
+    const previousFiles = previousConv ? this.extractFilePaths(previousConv) : [];
+    const convText = this.extractConversationText(currentConv);
+
+    // Read existing memo
+    let memo: LongTermMemo;
+    if (fs.existsSync(memoPath)) {
+      memo = JSON.parse(fs.readFileSync(memoPath, 'utf-8'));
+    } else {
+      // Fallback to create if memo doesn't exist
+      await this.createLongTermMemory(projectPath);
+      return;
+    }
+
+    // File Summary and Diff
+    let fileSummary = '';
+    let fileDiff = '';
+    if (currentFiles.length > 0) {
+      fileSummary = await this.summarizeDocument(currentFiles);
+
+      // Check for files in the previous conversation
+      if (previousFiles.length > 0) {
+        fileDiff = await this.calculateFileDiff(currentFiles, previousFiles);
+      }
+    }
+
+    // Conversation Summary
+    const background = memo.farMemory + '\n' + memo.longTermMemories.map(m => m.conversationSummary).join('\n');
+    const conversationSummary = await this.summarizeFeedbackConversation(convText, background);
+
+    // Add new memory
+    memo.longTermMemories.push({
+      fileSummary,
+      fileDiff,
+      conversationSummary,
+    });
+
+    // Check if compression is needed: > 5 memories or > 40K tokens (approx 160K chars)
+    const totalContent = JSON.stringify(memo);
+    const TOKEN_LIMIT_CHARS = 40000 * 4; // 40K tokens * 4 chars/token
+
+    if (memo.longTermMemories.length > 5 || totalContent.length > TOKEN_LIMIT_CHARS) {
+      // Compress the first 3 long-term memories
+      const toCompress = memo.longTermMemories.splice(0, 3);
+      const toCompressText = toCompress
+        .map(m => `File Summary: ${m.fileSummary}\nFile Diff: ${m.fileDiff}\nConv Summary: ${m.conversationSummary}`)
+        .join('\n\n');
+
+      memo.farMemory = await this.compressMemory(memo.farMemory, toCompressText);
+    }
+
+    fs.writeFileSync(memoPath, JSON.stringify(memo, null, 2), 'utf-8');
+  }
+
+  /**
+   * Extracts file paths from a conversation object.
+   */
+  private extractFilePaths(conversation: any): string[] {
+    const filePaths: string[] = [];
+    if (conversation.records) {
+      for (const record of conversation.records) {
+        if (record.type === 'file' && record.content) {
+          filePaths.push(record.content);
+        }
+      }
+    }
+    return filePaths;
+  }
+
+  /**
+   * Extracts text from messages in a conversation object.
+   */
+  private extractConversationText(conversation: any): string {
+    let text = '';
+    if (conversation.records) {
+      for (const record of conversation.records) {
+        if (record.type === 'message' && record.content) {
+          const senderName = conversation.participants?.[record.sender] || record.sender;
+          text += `${senderName}: ${record.content}\n`;
+        }
+      }
+    }
+    return text.trim();
+  }
+
+  /**
+   * Calculates difference between two sets of files using LLM.
+   */
+  private async calculateFileDiff(currentFiles: string[], previousFiles: string[]): Promise<string> {
+    // Find files that are the "same" (e.g. same filename)
+    const pairs: [string, string][] = [];
+    for (const curr of currentFiles) {
+      const currName = path.basename(curr);
+      for (const prev of previousFiles) {
+        if (path.basename(prev) === currName) {
+          pairs.push([prev, curr]);
+          break;
+        }
+      }
+    }
+
+    if (pairs.length === 0) return '';
+
+    // For each pair, ask LLM to summarize the difference
+    let diffSummary = '';
+    for (const [prev, curr] of pairs) {
+      const prompt = `
+You are an expert academic research assistant.
+Compare the following two versions of the same document and summarize the key changes, improvements, or additions in the new version.
+
+Previous version: ${path.basename(prev)}
+New version: ${path.basename(curr)}
+
+Be specific about what content was updated or added.
+      `.trim();
+
+      try {
+        const diff = await llmService.generateContent(prompt, [prev, curr]);
+        diffSummary += `Differences in ${path.basename(curr)}:\n${diff}\n\n`;
+      } catch (error) {
+        console.error('Error calculating file diff:', error);
+      }
+    }
+
+    return diffSummary.trim();
   }
 
   /**
