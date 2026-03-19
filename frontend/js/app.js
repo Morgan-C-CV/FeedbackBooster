@@ -271,9 +271,11 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
     }
 
     updateStatus('Checking consistency...', 'busy');
+    const resultDisplay = document.getElementById('evaluated-reasoning');
+    resultDisplay.innerHTML = '<div class="loading-spinner">Analyzing your reasoning with LLM...</div>';
     
     try {
-        const res = await fetch(`${API_URL}/check-consistency`, {
+        const response = await fetch(`${API_URL}/check-consistency`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -288,15 +290,25 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
                 enrichedContext: state.currentShortTermMemory + (state.currentFileContext ? `\n\n## File Context\n${state.currentFileContext}` : '')
             })
         });
-        const data = await res.json();
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('[Frontend] Consistency API raw response:', data);
         
         // UI ONLY shows the highlighted result, not the explanation
-        document.getElementById('evaluated-reasoning').innerHTML = data.highlightedReasoning;
+        // Fallback to original reasoning if highlightedReasoning is missing
+        const resultHtml = data.highlightedReasoning || userReasoning || 'No results returned';
+        console.log('[Frontend] Final HTML to render:', resultHtml);
+        resultDisplay.innerHTML = resultHtml;
         
         showStep('result');
         updateStatus('Check complete', 'idle');
     } catch (err) {
         console.error('Consistency check error:', err);
+        resultDisplay.innerHTML = `<div class="error-text">Error checking consistency: ${err.message}</div>`;
         updateStatus('Error in consistency check', 'error');
     }
 });

@@ -196,24 +196,34 @@ app.post('/api/check-consistency', async (req, res) => {
 
     // Generate highlightedReasoning on the backend
     let highlightedReasoning = userReasoning;
-    
-    // Sort by length descending to avoid nested replacement issues
     const allPhrases = [
       ...(result.supportedText || []).map(p => ({ text: p, supported: true })),
       ...(result.unsupportedText || []).map(p => ({ text: p, supported: false }))
     ].sort((a, b) => b.text.length - a.text.length);
+    
+    console.log("[Consistency] Phrases to highlight:", allPhrases);
 
     allPhrases.forEach(phrase => {
       if (!phrase.text) return;
-      const regex = new RegExp(`(${escapeRegExp(phrase.text)})`, 'gi');
+      // Escape regex special characters to prevent errors
+      const escapedText = phrase.text.replace(/[.*+?^${}()|[\\\]]/g, '\\$&');
+      const regex = new RegExp(`(${escapedText})`, 'gi');
       const className = phrase.supported ? 'supported-text' : 'unsupported-text';
       highlightedReasoning = highlightedReasoning.replace(regex, `<span class="${className}">$1</span>`);
     });
+    
+    console.log("[Consistency] Final Highlighted HTML:", highlightedReasoning);
 
-    res.json({
-      ...result,
-      highlightedReasoning
-    });
+    const responseData = {
+      isSupported: result.isSupported ?? false,
+      supportedText: result.supportedText || [],
+      unsupportedText: result.unsupportedText || [],
+      explanation: result.explanation || '',
+      highlightedReasoning: highlightedReasoning || userReasoning
+    };
+    
+    console.log("[Consistency] Sending response to frontend:", JSON.stringify(responseData, null, 2));
+    res.json(responseData);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

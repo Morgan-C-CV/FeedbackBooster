@@ -234,7 +234,16 @@ class FeedbackService {
 
     try {
       const jsonStr = await llmService.generateJsonContent(prompt);
-      const result: ReasoningConsistencyResult = JSON.parse(jsonStr);
+      console.log("[LLM] Raw Response:", jsonStr);
+      
+      // Clean up potential markdown code blocks if the model didn't strictly follow JSON mode
+      const cleanJson = jsonStr.replace(/```json\n?|\n?```/g, '').trim();
+      const result: ReasoningConsistencyResult = JSON.parse(cleanJson);
+      
+      // Ensure arrays exist
+      if (!result.supportedText) result.supportedText = [];
+      if (!result.unsupportedText) result.unsupportedText = [];
+      
       return result;
     } catch (error) {
       console.error("Error checking reasoning consistency:", error);

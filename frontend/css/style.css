@@ -217,6 +217,18 @@ button:disabled {
     text-decoration: underline;
 }
 
+.loading-spinner {
+    color: var(--primary-color);
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+.error-text {
+    color: #ef4444;
+    font-weight: bold;
+}
+
 .highlighted-text {
     padding: 15px;
     background-color: #f8fafc;
@@ -232,12 +244,17 @@ button:disabled {
 }
 
 .supported-text {
-    background-color: var(--support-bg);
+    background-color: #dcfce7;
+    border-bottom: 2px solid #22c55e;
+    padding: 2px 0;
 }
 
 .unsupported-text {
-    color: var(--unsupport-text);
-    text-decoration: underline dotted;
+    color: #ef4444;
+    background-color: #fee2e2;
+    text-decoration: underline wavy #ef4444;
+    font-weight: bold;
+    padding: 2px 0;
 }
 
 .file-link {
