@@ -51,20 +51,29 @@ function handleMouseMove(e) {
 // Initialize
 async function init() {
     try {
-        updateStatus('Initializing session...', 'busy');
+        updateStatus('Initializing project...', 'busy');
         
-        // Initialize session (backup and clear)
-        await fetch(`${API_URL}/init-session`, { method: 'POST' });
+        // 1. Initialize session (Backup and clear)
+        const initRes = await fetch(`${API_URL}/init-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: 'project01' })
+        });
+        if (!initRes.ok) throw new Error('Failed to initialize session');
 
-        // Get project info
-        const projectRes = await fetch(`${API_URL}/project`);
+        // 2. Get project info
+        const projectRes = await fetch(`${API_URL}/project?projectId=project01`);
+        if (!projectRes.ok) throw new Error('Failed to get project info');
         state.project = await projectRes.json();
-        projectNameEl.textContent = `Project: ${state.project.name}`;
+        projectNameEl.textContent = `Project: ${state.project.name || 'Unknown'}`;
 
-        // Get conversations (now reads from backup)
-        const convRes = await fetch(`${API_URL}/conversations`);
-        state.conversations = await convRes.json();
-
+        // 3. Get conversations (now reads from backup)
+        const convRes = await fetch(`${API_URL}/conversations?projectId=project01`);
+        if (!convRes.ok) throw new Error('Failed to get conversations');
+        state.conversations = await convRes.json() || [];
+        
+        console.log('[Frontend] Project initialized. Conversations count:', state.conversations.length);
+        
         if (state.conversations.length > 0) {
             startConversation(0);
         } else {
@@ -72,7 +81,7 @@ async function init() {
         }
     } catch (err) {
         console.error('Initialization error:', err);
-        updateStatus('Error connecting to backend', 'error');
+        updateStatus('Initialization failed', 'error');
     }
 }
 
@@ -82,6 +91,7 @@ function updateStatus(text, type = 'idle') {
 }
 
 async function startConversation(index) {
+    console.log(`[Frontend] Starting conversation at index: ${index}, total: ${state.conversations.length}`);
     state.currentIndex = index;
     const conversation = state.conversations[index];
     
@@ -314,9 +324,13 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
 });
 
 document.getElementById('btn-next-conversation').addEventListener('click', () => {
+    console.log('[Frontend] Next clicked. CurrentIndex:', state.currentIndex, 'Total:', state.conversations.length);
     if (state.currentIndex < state.conversations.length - 1) {
-        startConversation(state.currentIndex + 1);
+        const nextIndex = state.currentIndex + 1;
+        console.log('[Frontend] Proceeding to next index:', nextIndex);
+        startConversation(nextIndex);
     } else {
+        console.log('[Frontend] No more conversations.');
         alert('All conversations completed!');
     }
 });

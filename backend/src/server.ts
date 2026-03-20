@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import * as fs from 'fs';
 import * as path from 'path';
+import chalk from 'chalk';
 import { memoryService } from './services/memory/memory.service';
 import { feedbackService } from './services/feedback.service';
 import { toolService } from './services/tool.service';
@@ -14,8 +15,9 @@ app.use(express.json());
 
 // Helper to resolve project path
 const getProjectPath = (req: express.Request) => {
-  const projectPath = req.query.projectPath as string || path.resolve(__dirname, '../projects/project01');
-  return path.resolve(projectPath);
+  const projectId = (req.body && req.body.projectId) || (req.query && req.query.projectId) || 'project01';
+  const projectPath = path.resolve(__dirname, `../projects/${projectId}`);
+  return projectPath;
 };
 
 // 0. Initialize session (Backup and clear memory)
@@ -30,18 +32,35 @@ app.post('/api/init-session', (req, res) => {
     const memoBackupPath = path.join(projectPath, 'long_term_memo.json.bak');
     const shortTermBackupPath = path.join(projectPath, 'short_term_memo.md.bak');
 
+    console.log(chalk.blue.bold('\n=================== Session Initialized ===================\n'));
+    console.log(chalk.gray(`Project Path: ${projectPath}`));
+
     if (!fs.existsSync(messagesPath)) {
       return res.status(404).json({ error: 'messages.json not found' });
     }
 
-    // Backup
-    fs.copyFileSync(messagesPath, messagesBackupPath);
-    if (fs.existsSync(memoPath)) fs.copyFileSync(memoPath, memoBackupPath);
-    if (fs.existsSync(shortTermPath)) fs.copyFileSync(shortTermPath, shortTermBackupPath);
+    // Backup Strategy: 
+    // If messages.json.bak already exists, it means we have a master copy.
+    // We should only backup if it doesn't exist, to avoid overwriting master with partial history.
+    if (!fs.existsSync(messagesBackupPath)) {
+      console.log(chalk.gray(`[Init] Creating initial backup from ${messagesPath}`));
+      fs.copyFileSync(messagesPath, messagesBackupPath);
+    } else {
+      console.log(chalk.gray(`[Init] Backup already exists at ${messagesBackupPath}, keeping master copy.`));
+    }
 
-    // Clear current state
+    if (fs.existsSync(memoPath) && !fs.existsSync(memoBackupPath)) {
+      fs.copyFileSync(memoPath, memoBackupPath);
+    }
+    if (fs.existsSync(shortTermPath) && !fs.existsSync(shortTermBackupPath)) {
+      fs.copyFileSync(shortTermPath, shortTermBackupPath);
+    }
+
+    // 2. Clear current state for fresh processing (Matches feedback-agent.ts logic)
+    console.log(chalk.gray('  [Init] Clearing current memory state...'));
     if (fs.existsSync(memoPath)) fs.unlinkSync(memoPath);
     if (fs.existsSync(shortTermPath)) fs.unlinkSync(shortTermPath);
+    console.log(chalk.green('  ✓ Memory cleared.\n'));
 
     res.json({ message: 'Session initialized and files backed up' });
   } catch (error: any) {
@@ -64,13 +83,20 @@ app.get('/api/conversations', (req, res) => {
   const messagesBackupPath = path.join(projectPath, 'messages.json.bak');
   const messagesPath = path.join(projectPath, 'messages.json');
   
-  // Always read from the backup if it exists to get the "full" history
-  const pathToRead = fs.existsSync(messagesBackupPath) ? messagesBackupPath : messagesPath;
+  console.log(chalk.gray(`[Conversations] Loading history from: ${messagesBackupPath}`));
   
-  if (!fs.existsSync(pathToRead)) {
-    return res.status(404).json({ error: 'messages.json not found' });
+  // Always read from the backup to get the "full" history
+  if (!fs.existsSync(messagesBackupPath)) {
+    console.log(chalk.yellow(`[Conversations] Backup not found, falling back to: ${messagesPath}`));
+    if (!fs.existsSync(messagesPath)) {
+      return res.status(404).json({ error: 'messages.json not found' });
+    }
+    const history = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+    return res.json(history);
   }
-  const history = JSON.parse(fs.readFileSync(pathToRead, 'utf-8'));
+  
+  const history = JSON.parse(fs.readFileSync(messagesBackupPath, 'utf-8'));
+  console.log(chalk.gray(`[Conversations] Found ${history.length} conversations in history.\n`));
   res.json(history);
 });
 
@@ -88,26 +114,38 @@ app.post('/api/process-memory', async (req, res) => {
       throw new Error('Backup not found. Please initialize session first.');
     }
     const fullHistory = JSON.parse(fs.readFileSync(messagesBackupPath, 'utf-8'));
+    const currentConversation = fullHistory[conversationIndex];
+    const convId = currentConversation.conversation_id || `#${conversationIndex + 1}`;
+
+    console.log(chalk.blue.bold(`\n╔══════════════════════════════════════════════════════════════════╗`));
+    console.log(chalk.blue.bold(`║  Processing Round ${conversationIndex + 1} / ${fullHistory.length}: ${convId}`));
+    console.log(chalk.blue.bold(`╚══════════════════════════════════════════════════════════════════╝\n`));
+
+    // ─── Step A: Memory Processing ──────────────────────────────────────
+    console.log(chalk.cyan('  [Memory] Processing...'));
+
+    // Simulate partial messages.json (incremental upload) - EXACTLY as feedback-agent.ts logic
     const currentHistory = fullHistory.slice(0, conversationIndex + 1);
-    
-    // OVERWRITE messages.json with partial history to match feedback-agent.ts logic
     fs.writeFileSync(messagesPath, JSON.stringify(currentHistory, null, 2), 'utf-8');
+    console.log(chalk.gray(`    → Incremental messages.json updated (${currentHistory.length} conversations).`));
     
-    // Create/Update long-term memory
-    console.log(`[Memory] Processing memory for conversation ${conversationIndex}...`);
+    // Create or Update long-term memory
     if (!fs.existsSync(memoPath)) {
-      console.log(`[Memory] Creating long-term memory at ${memoPath}`);
+      console.log(chalk.gray('    → Creating Long-term Memory (Initial)...'));
       await memoryService.createLongTermMemory(resolvedPath);
     } else {
-      console.log(`[Memory] Updating long-term memory at ${memoPath}`);
+      console.log(chalk.gray('    → Updating Long-term Memory...'));
       await memoryService.updateLongTermMemory(resolvedPath);
     }
 
-    console.log(`[Memory] Creating short-term memory...`);
+    // Build Short-term Memory
+    console.log(chalk.gray('    → Building Short-term Memory...'));
     const shortTermMemory = await memoryService.createShortTermMemory(resolvedPath);
-    console.log(`[Memory] Short-term memory created successfully.`);
+    console.log(chalk.green('    ✓ Memory processed.\n'));
+
     res.json({ shortTermMemory });
   } catch (error: any) {
+    console.error(chalk.red(`[Error] Memory processing failed: ${error.message}`));
     res.status(500).json({ error: error.message });
   }
 });
@@ -118,11 +156,25 @@ app.post('/api/restore-session', (req, res) => {
     const projectPath = getProjectPath(req);
     const messagesPath = path.join(projectPath, 'messages.json');
     const messagesBackupPath = path.join(projectPath, 'messages.json.bak');
-    // ... similarly for others
+    const memoPath = path.join(projectPath, 'long_term_memo.json');
+    const memoBackupPath = path.join(projectPath, 'long_term_memo.json.bak');
+    const shortTermPath = path.join(projectPath, 'short_term_memo.md');
+    const shortTermBackupPath = path.join(projectPath, 'short_term_memo.md.bak');
+
+    console.log(chalk.gray('\nRestoring original files from backups...'));
     if (fs.existsSync(messagesBackupPath)) {
       fs.copyFileSync(messagesBackupPath, messagesPath);
       fs.unlinkSync(messagesBackupPath);
     }
+    if (fs.existsSync(memoBackupPath)) {
+      fs.copyFileSync(memoBackupPath, memoPath);
+      fs.unlinkSync(memoBackupPath);
+    }
+    if (fs.existsSync(shortTermBackupPath)) {
+      fs.copyFileSync(shortTermBackupPath, shortTermPath);
+      fs.unlinkSync(shortTermBackupPath);
+    }
+    console.log(chalk.gray('Backups restored. Session ended.'));
     res.json({ message: 'Backup restored' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -151,14 +203,20 @@ ${filePathsRelative.map((f: string) => `- ${f}`).join('\n')}
 
 For each file, use the read_file tool to access it, then provide a brief summary focusing on the research content, methodology, and key arguments.`;
 
-    console.log(`[FileContext] Retrieving context for ${filePaths.length} files...`);
+    console.log(chalk.cyan('  [Tools] Retrieving file context...'));
     const fileContext = await toolService.runWithTools(toolPrompt, (toolName, args, result) => {
-      console.log(`[FileContext] Tool: ${toolName}, Path: ${args.path}`);
+      console.log(chalk.yellow(`    🔨 Tool: ${chalk.bold(toolName)}`));
+      console.log(chalk.gray(`       Path: ${args.path || '(n/a)'}`));
+      const displayResult = result.length > 200
+        ? result.substring(0, 200) + `... (${result.length} chars)`
+        : result;
+      console.log(chalk.gray(`       Result: ${displayResult}\n`));
     });
-    console.log(`[FileContext] Retrieval completed.`);
+    console.log(chalk.green('    ✓ File context retrieved.\n'));
 
     res.json({ fileContext });
   } catch (error: any) {
+    console.error(chalk.red(`[Error] File context retrieval failed: ${error.message}`));
     res.status(500).json({ error: error.message });
   }
 });
@@ -167,11 +225,19 @@ For each file, use the read_file tool to access it, then provide a brief summary
 app.post('/api/analyze-feedback', async (req, res) => {
   try {
     const { feedback, studentMessages, enrichedContext } = req.body;
+    
+    console.log(chalk.cyan('  [Analysis] Interactive Feedback Analysis'));
+    console.log(chalk.blue('    Extracting keywords from feedback...'));
     const keywordResult = await feedbackService.extractKeywords(feedback, studentMessages, enrichedContext);
+    console.log(chalk.green('    ✓ Keywords Extracted.'));
+
+    console.log(chalk.blue('    Generating Dual Interpretations...'));
     const dualResult = await feedbackService.generateDualInterpretations(feedback, studentMessages, enrichedContext);
+    console.log(chalk.green('    ✓ Dual Interpretations Generated.\n'));
     
     res.json({ keywordResult, dualResult });
   } catch (error: any) {
+    console.error(chalk.red(`[Error] Feedback analysis failed: ${error.message}`));
     res.status(500).json({ error: error.message });
   }
 });
@@ -180,6 +246,8 @@ app.post('/api/analyze-feedback', async (req, res) => {
 app.post('/api/check-consistency', async (req, res) => {
   try {
     const { userReasoning, selectedInterpretation, feedback, studentMessages, keywords, enrichedContext } = req.body;
+    
+    console.log(chalk.blue(`    Checking consistency of reasoning against ${selectedInterpretation} context...`));
     const result = await feedbackService.checkReasoningConsistency(
       userReasoning,
       selectedInterpretation,
@@ -201,18 +269,15 @@ app.post('/api/check-consistency', async (req, res) => {
       ...(result.unsupportedText || []).map(p => ({ text: p, supported: false }))
     ].sort((a, b) => b.text.length - a.text.length);
     
-    console.log("[Consistency] Phrases to highlight:", allPhrases);
-
     allPhrases.forEach(phrase => {
       if (!phrase.text) return;
-      // Escape regex special characters to prevent errors
       const escapedText = phrase.text.replace(/[.*+?^${}()|[\\\]]/g, '\\$&');
       const regex = new RegExp(`(${escapedText})`, 'gi');
       const className = phrase.supported ? 'supported-text' : 'unsupported-text';
       highlightedReasoning = highlightedReasoning.replace(regex, `<span class="${className}">$1</span>`);
     });
     
-    console.log("[Consistency] Final Highlighted HTML:", highlightedReasoning);
+    console.log(chalk.green('    ✓ Consistency check completed.\n'));
 
     const responseData = {
       isSupported: result.isSupported ?? false,
@@ -222,9 +287,9 @@ app.post('/api/check-consistency', async (req, res) => {
       highlightedReasoning: highlightedReasoning || userReasoning
     };
     
-    console.log("[Consistency] Sending response to frontend:", JSON.stringify(responseData, null, 2));
     res.json(responseData);
   } catch (error: any) {
+    console.error(chalk.red(`[Error] Consistency check failed: ${error.message}`));
     res.status(500).json({ error: error.message });
   }
 });
