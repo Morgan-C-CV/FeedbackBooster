@@ -42,11 +42,19 @@ app.post('/api/init-session', (req, res) => {
     // Backup Strategy: 
     // If messages.json.bak already exists, it means we have a master copy.
     // We should only backup if it doesn't exist, to avoid overwriting master with partial history.
+    // However, if the user manually added more conversations to messages.json, we should update the backup.
     if (!fs.existsSync(messagesBackupPath)) {
       console.log(chalk.gray(`[Init] Creating initial backup from ${messagesPath}`));
       fs.copyFileSync(messagesPath, messagesBackupPath);
     } else {
-      console.log(chalk.gray(`[Init] Backup already exists at ${messagesBackupPath}, keeping master copy.`));
+      const currentMsgs = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+      const backupMsgs = JSON.parse(fs.readFileSync(messagesBackupPath, 'utf-8'));
+      if (currentMsgs.length > backupMsgs.length) {
+        console.log(chalk.yellow(`[Init] messages.json has more conversations (${currentMsgs.length}) than backup (${backupMsgs.length}). Updating backup.`));
+        fs.copyFileSync(messagesPath, messagesBackupPath);
+      } else {
+        console.log(chalk.gray(`[Init] Backup already exists at ${messagesBackupPath}, keeping master copy.`));
+      }
     }
 
     if (fs.existsSync(memoPath) && !fs.existsSync(memoBackupPath)) {
