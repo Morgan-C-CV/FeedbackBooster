@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start-server": "ts-node src/server.ts"
+    "start-server": "ts-node src/server.ts",
+    "dev": "npm run start-server",
+    "start": "npm run start-server"
   },
   "keywords": [],
   "author": "",

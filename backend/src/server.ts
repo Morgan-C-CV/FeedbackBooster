@@ -13,6 +13,12 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
+// Ensure results directory exists
+const resultsDir = path.resolve(__dirname, '../results');
+if (!fs.existsSync(resultsDir)) {
+  fs.mkdirSync(resultsDir, { recursive: true });
+}
+
 // Helper to resolve project path
 const getProjectPath = (req: express.Request) => {
   const projectId = (req.body && req.body.projectId) || (req.query && req.query.projectId) || 'project01';
@@ -346,6 +352,45 @@ app.get('/api/file', (req, res) => {
     const content = fs.readFileSync(filePath, 'utf-8');
     res.json({ content });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 8. Save final results
+app.post('/api/save-results', (req, res) => {
+  try {
+    const { userId, projectId, conversationId, mode, finalSelection, confidence, reasoning } = req.body;
+    const csvPath = path.join(resultsDir, 'results.csv');
+    const timestamp = new Date().toISOString();
+    
+    const headers = 'Timestamp,UserID,ProjectID,ConversationID,Mode,FinalSelection,Confidence,Reasoning\n';
+    if (!fs.existsSync(csvPath)) {
+      fs.writeFileSync(csvPath, headers);
+    }
+    
+    // Escape and quote values for CSV
+    const escapeCsv = (str: any) => {
+      if (str === undefined || str === null) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const row = [
+      escapeCsv(timestamp),
+      escapeCsv(userId),
+      escapeCsv(projectId),
+      escapeCsv(conversationId),
+      escapeCsv(mode),
+      escapeCsv(finalSelection),
+      escapeCsv(confidence),
+      escapeCsv(reasoning)
+    ].join(',') + '\n';
+
+    fs.appendFileSync(csvPath, row);
+    console.log(chalk.green(`[Results] Final data saved for ${userId} (Project: ${projectId}, ID: ${conversationId})`));
+    res.json({ message: 'Results saved successfully' });
+  } catch (error: any) {
+    console.error(chalk.red(`[Error] Failed to save results: ${error.message}`));
     res.status(500).json({ error: error.message });
   }
 });

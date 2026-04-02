@@ -14,6 +14,25 @@
         <div class="status-indicator" id="status-indicator">Idle</div>
     </header>
 
+    <!-- Setup Screen (Overlay) -->
+    <div id="setup-overlay" class="setup-overlay">
+        <div class="setup-modal">
+            <h2>Welcome to Feedback Study</h2>
+            <div class="setup-form">
+                <label for="user-id">Tester Number:</label>
+                <input type="text" id="user-id" placeholder="e.g. 001">
+                <div class="setup-toggle">
+                    <label>Enable Agent Assist:</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="agent-assist-toggle" checked>
+                        <span class="slider round"></span>
+                    </div>
+                </div>
+                <button id="btn-setup-start">Start Study</button>
+            </div>
+        </div>
+    </div>
+
     <main id="main-content">
         <section id="left-panel">
             <div class="panel-header">File Viewer</div>
@@ -42,11 +61,13 @@
             <div class="step-label">Step B: Dual Interpretations</div>
             <div class="interpretations-container">
                 <div class="interpretation-card" id="task-level-card">
+                    <span class="assist-only label-instruction">Select the most important factor (exclude secondary factors)</span>
                     <h3>Task-Level</h3>
                     <p id="task-level-reasoning"></p>
                     <button class="btn-select" data-level="Task-Level">Select Task-Level</button>
                 </div>
                 <div class="interpretation-card" id="process-level-card">
+                    <span class="assist-only label-instruction">Select the most important factor (exclude secondary factors)</span>
                     <h3>Process-Level</h3>
                     <p id="process-level-reasoning"></p>
                     <button class="btn-select" data-level="Process-Level">Select Process-Level</button>
@@ -70,6 +91,36 @@
                 <span class="legend-item"><span class="text-red">Red Text</span>: Inconsistent or Irrelevant</span>
             </div>
             <div id="evaluated-reasoning" class="highlighted-text"></div>
+            <button id="btn-go-to-final">Go to Final Decision</button>
+        </div>
+
+        <div id="interaction-step-final" class="interaction-step">
+            <div class="step-label">Final Decision & Confidence</div>
+            <div class="final-selection-container">
+                <div class="final-choice">
+                    <p>Final Level Choice:</p>
+                    <div class="radio-group" id="final-choice-group">
+                        <label><input type="radio" name="final-level" value="Task-Level"> Task-Level</label>
+                        <label><input type="radio" name="final-level" value="Process-Level"> Process-Level</label>
+                    </div>
+                </div>
+                <div class="confidence-scoring">
+                    <p>Confidence Score (1=Low, 5=High):</p>
+                    <div class="score-buttons" id="score-buttons">
+                        <button class="btn-score" data-score="1">1</button>
+                        <button class="btn-score" data-score="2">2</button>
+                        <button class="btn-score" data-score="3">3</button>
+                        <button class="btn-score" data-score="4">4</button>
+                        <button class="btn-score" data-score="5">5</button>
+                    </div>
+                </div>
+                <button id="btn-submit-final-result" disabled>Submit Final Results</button>
+            </div>
+        </div>
+
+        <div id="interaction-step-next" class="interaction-step">
+            <div class="step-label">Completed</div>
+            <p>Data submitted successfully. Proceed to the next round if available.</p>
             <button id="btn-next-conversation">Next Conversation</button>
         </div>
     </footer>

@@ -2,6 +2,8 @@ const API_URL = 'http://localhost:3001/api';
 
 // State management
 let state = {
+    userId: '',
+    isAgentAssist: true,
     project: null,
     conversations: [],
     currentIndex: 0,
@@ -9,7 +11,9 @@ let state = {
     currentDualResult: null,
     currentKeywordResult: null,
     selectedInterpretation: '',
-    currentFileContext: ''
+    currentFileContext: '',
+    finalSelection: '',
+    confidenceScore: 0
 };
 
 // DOM Elements
@@ -17,13 +21,16 @@ const projectNameEl = document.getElementById('project-name');
 const conversationArea = document.getElementById('conversation-area');
 const fileContentArea = document.getElementById('file-content');
 const statusIndicator = document.getElementById('status-indicator');
+const setupOverlay = document.getElementById('setup-overlay');
 
 // Interaction steps
 const steps = {
     analysisTrigger: document.getElementById('interaction-step-analysis-trigger'),
     analysis: document.getElementById('interaction-step-analysis'),
     reasoning: document.getElementById('interaction-step-reasoning'),
-    result: document.getElementById('interaction-step-result')
+    result: document.getElementById('interaction-step-result'),
+    final: document.getElementById('interaction-step-final'),
+    next: document.getElementById('interaction-step-next')
 };
 
 // Resizer logic
@@ -31,14 +38,16 @@ const resizer = document.getElementById('resizer');
 const leftPanel = document.getElementById('left-panel');
 let isResizing = false;
 
-resizer.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', () => {
-        isResizing = false;
-        document.removeEventListener('mousemove', handleMouseMove);
+if (resizer) {
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', handleMouseMove);
+        });
     });
-});
+}
 
 function handleMouseMove(e) {
     if (!isResizing) return;
@@ -47,6 +56,29 @@ function handleMouseMove(e) {
         leftPanel.style.width = `${newWidth}%`;
     }
 }
+
+// Setup Event Listeners
+document.getElementById('btn-setup-start').addEventListener('click', () => {
+    const userIdInput = document.getElementById('user-id').value.trim();
+    if (!userIdInput) {
+        alert('Please enter a Tester Number.');
+        return;
+    }
+    
+    state.userId = userIdInput;
+    state.isAgentAssist = document.getElementById('agent-assist-toggle').checked;
+    
+    // Apply mode to body for CSS targeting
+    if (state.isAgentAssist) {
+        document.body.classList.add('mode-assist');
+    } else {
+        document.body.classList.remove('mode-assist');
+    }
+    
+    setupOverlay.style.display = 'none';
+    console.log(`[Setup] User: ${state.userId}, Assist: ${state.isAgentAssist}`);
+    init();
+});
 
 // Initialize
 async function init() {
@@ -57,11 +89,10 @@ async function init() {
         const randomRes = await fetch(`${API_URL}/random-project`);
         if (!randomRes.ok) throw new Error('Failed to get random project');
         const { projectId } = await randomRes.json();
-        console.log(`[Frontend] Random project selected: ${projectId}`);
 
         updateStatus(`Initializing ${projectId}...`, 'busy');
         
-        // 2. Initialize session (Backup and clear)
+        // 2. Initialize session
         const initRes = await fetch(`${API_URL}/init-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -75,12 +106,10 @@ async function init() {
         state.project = await projectRes.json();
         projectNameEl.textContent = `Project: ${state.project.name || 'Unknown'}`;
 
-        // 4. Get conversations (now reads from backup)
+        // 4. Get conversations
         const convRes = await fetch(`${API_URL}/conversations?projectId=${projectId}`);
         if (!convRes.ok) throw new Error('Failed to get conversations');
         state.conversations = await convRes.json() || [];
-        
-        console.log('[Frontend] Project initialized. Conversations count:', state.conversations.length);
         
         if (state.conversations.length > 0) {
             startConversation(0);
@@ -99,88 +128,84 @@ function updateStatus(text, type = 'idle') {
 }
 
 async function startConversation(index) {
-    console.log(`[Frontend] Starting conversation at index: ${index}, total: ${state.conversations.length}`);
     state.currentIndex = index;
-    const conversation = state.conversations[index];
+    state.finalSelection = '';
+    state.confidenceScore = 0;
+    state.selectedInterpretation = '';
     
-    // Clear previous
+    const conversation = state.conversations[index];
     conversationArea.innerHTML = '';
-    // Reset reasoning input
+    
+    // Reset inputs
     const reasoningInput = document.getElementById('user-reasoning-input');
     if (reasoningInput) reasoningInput.value = '';
     
-    showStep('analysisTrigger');
-    document.getElementById('btn-start-analysis').disabled = true;
-    updateStatus(`Processing Conversation ${index + 1}/${state.conversations.length}`, 'busy');
+    // Reset final step UI
+    document.querySelectorAll('input[name="final-level"]').forEach(rb => rb.checked = false);
+    document.querySelectorAll('.btn-score').forEach(btn => btn.classList.remove('selected'));
+    document.getElementById('btn-submit-final-result').disabled = true;
 
-    // Display all messages in the conversation area
     renderConversation(conversation);
 
-    // Step A: Process Memory (Run in background, no UI display)
-    try {
-        const memoryRes = await fetch(`${API_URL}/process-memory`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                projectPath: state.project.path,
-                conversationIndex: index
-            })
-        });
-        const memoryData = await memoryRes.json();
-        state.currentShortTermMemory = memoryData.shortTermMemory;
-        
-        // Step B: Get File Context (Run in background)
-        const filePaths = extractFilePaths(conversation);
-        const contextRes = await fetch(`${API_URL}/file-context`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                projectPath: state.project.path,
-                filePaths: filePaths
-            })
-        });
-        const contextData = await contextRes.json();
-        state.currentFileContext = contextData.fileContext;
+    if (state.isAgentAssist) {
+        showStep('analysisTrigger');
+        document.getElementById('btn-start-analysis').disabled = true;
+        updateStatus(`Processing Round ${index + 1}/${state.conversations.length}`, 'busy');
 
-        document.getElementById('btn-start-analysis').disabled = false;
-        updateStatus('Ready for analysis', 'idle');
-    } catch (err) {
-        console.error('Background processing error:', err);
-        updateStatus('Error in background processing', 'error');
+        try {
+            // Background processing
+            const memoryRes = await fetch(`${API_URL}/process-memory`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectPath: state.project.path,
+                    conversationIndex: index
+                })
+            });
+            const memoryData = await memoryRes.json();
+            state.currentShortTermMemory = memoryData.shortTermMemory;
+            
+            const filePaths = extractFilePaths(conversation);
+            const contextRes = await fetch(`${API_URL}/file-context`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectPath: state.project.path,
+                    filePaths: filePaths
+                })
+            });
+            const contextData = await contextRes.json();
+            state.currentFileContext = contextData.fileContext;
+
+            document.getElementById('btn-start-analysis').disabled = false;
+            updateStatus('Ready for analysis', 'idle');
+        } catch (err) {
+            console.error('Background processing error:', err);
+            updateStatus('Error in processing', 'error');
+        }
+    } else {
+        // Manual Mode: Skip to Final Step immediately
+        updateStatus('Review conversation then make your decision', 'idle');
+        showStep('final');
     }
 }
 
 function renderConversation(conversation) {
     conversation.records.forEach(record => {
+        const msgEl = document.createElement('div');
         if (record.type === 'message') {
-            const msgEl = document.createElement('div');
             msgEl.className = `message message-${record.sender}`;
-            
             const senderName = conversation.participants?.[record.sender] || record.sender;
-            const senderSpan = document.createElement('span');
-            senderSpan.className = 'sender-name';
-            senderSpan.textContent = senderName;
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            
-            // Process content for file links
             let content = record.content || '';
             content = content.replace(/(\/[^\s]+\.[a-zA-Z0-9]+)/g, (match) => {
                 return `<span class="file-link" onclick="loadFile('${match}')">${match}</span>`;
             });
-            
-            contentDiv.innerHTML = content;
-            
-            msgEl.appendChild(senderSpan);
-            msgEl.appendChild(contentDiv);
-            conversationArea.appendChild(msgEl);
+            msgEl.innerHTML = `<span class="sender-name">${senderName}</span><div class="message-content">${content}</div>`;
         } else if (record.type === 'file') {
-            const fileEl = document.createElement('div');
-            fileEl.className = 'message message-file';
-            fileEl.innerHTML = `<span class="sender-name">System</span><div class="message-content">File attached: <span class="file-link" onclick="loadFile('${record.content}')">${record.content}</span></div>`;
-            conversationArea.appendChild(fileEl);
+            msgEl.className = 'message message-file';
+            msgEl.innerHTML = `<span class="sender-name">System</span><div class="message-content">File attached: <span class="file-link" onclick="loadFile('${record.content}')">${record.content}</span></div>`;
         }
+        conversationArea.appendChild(msgEl);
     });
 }
 
@@ -193,11 +218,7 @@ async function loadFile(path) {
         try {
             const res = await fetch(`${API_URL}/file?path=${encodeURIComponent(path)}`);
             const data = await res.json();
-            if (data.error) {
-                fileContentArea.textContent = `Error loading file: ${data.error}`;
-            } else {
-                fileContentArea.innerHTML = `<pre class="content-area">${data.content}</pre>`;
-            }
+            fileContentArea.innerHTML = data.error ? `Error: ${data.error}` : `<pre class="content-area">${data.content}</pre>`;
         } catch (err) {
             fileContentArea.textContent = 'Error fetching file content';
         }
@@ -205,11 +226,13 @@ async function loadFile(path) {
 }
 
 function showStep(stepName) {
-    Object.values(steps).forEach(el => el.classList.remove('active'));
-    steps[stepName].classList.add('active');
+    Object.values(steps).forEach(el => {
+        if (el) el.classList.remove('active');
+    });
+    if (steps[stepName]) steps[stepName].classList.add('active');
 }
 
-// Event Listeners
+// Event Listeners for Steps
 document.getElementById('btn-start-analysis').addEventListener('click', async () => {
     updateStatus('Generating interpretations...', 'busy');
     showStep('analysis');
@@ -218,10 +241,8 @@ document.getElementById('btn-start-analysis').addEventListener('click', async ()
     const feedback = extractAdvisorFeedback(conversation);
     const studentMessages = conversation.records
         ?.filter(r => r.type === 'message' && r.sender === 'B')
-        .map(r => r.content)
-        .join('\n\n') || '';
+        .map(r => r.content).join('\n\n') || '';
 
-    // enrichedContext used in backend
     const enrichedContext = [
         state.currentShortTermMemory,
         state.currentFileContext ? `\n## File Context\n${state.currentFileContext}` : ''
@@ -237,34 +258,26 @@ document.getElementById('btn-start-analysis').addEventListener('click', async ()
         state.currentKeywordResult = data.keywordResult;
         state.currentDualResult = data.dualResult;
 
-        // Update UI
         document.getElementById('task-level-reasoning').textContent = data.dualResult.taskLevelInterpretation.reasoning;
         document.getElementById('process-level-reasoning').textContent = data.dualResult.processLevelInterpretation.reasoning;
-
-        // Highlight keywords in the conversation area for Advisor messages
         highlightAdvisorMessages(data.keywordResult.keywordPositions);
         
         updateStatus('Select an interpretation', 'idle');
     } catch (err) {
-        console.error('Analysis error:', err);
         updateStatus('Error in analysis', 'error');
     }
 });
 
-function highlightAdvisorMessages(positions) {
+function highlightAdvisorMessages() {
     const advisorMessages = document.querySelectorAll('.message-A .message-content');
+    const keywords = state.currentKeywordResult.keywords.sort((a, b) => b.length - a.length);
+    
     advisorMessages.forEach(msg => {
-        const text = msg.innerText;
-        let highlightedText = text;
-        
-        // Sort positions by length descending to handle overlapping keywords
-        const sortedKeywords = state.currentKeywordResult.keywords.sort((a, b) => b.length - a.length);
-        
-        sortedKeywords.forEach(keyword => {
+        let highlightedText = msg.innerText;
+        keywords.forEach(keyword => {
             const regex = new RegExp(`(${escapeRegExp(keyword)})`, 'gi');
             highlightedText = highlightedText.replace(regex, '<span class="keyword-highlight">$1</span>');
         });
-        
         msg.innerHTML = highlightedText;
     });
 }
@@ -282,15 +295,12 @@ document.querySelectorAll('.btn-select').forEach(btn => {
 });
 
 document.getElementById('btn-submit-reasoning').addEventListener('click', async () => {
-    const userReasoning = document.getElementById('user-reasoning-input').value;
-    if (!userReasoning.trim()) {
-        alert('Please provide your reasoning.');
-        return;
-    }
+    const userReasoning = document.getElementById('user-reasoning-input').value.trim();
+    if (!userReasoning) return alert('Please provide your reasoning.');
 
     updateStatus('Checking consistency...', 'busy');
     const resultDisplay = document.getElementById('evaluated-reasoning');
-    resultDisplay.innerHTML = '<div class="loading-spinner">Analyzing your reasoning with LLM...</div>';
+    resultDisplay.innerHTML = '<div class="loading-spinner">Analyzing with AI...</div>';
     
     try {
         const response = await fetch(`${API_URL}/check-consistency`, {
@@ -302,74 +312,85 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
                 feedback: extractAdvisorFeedback(state.conversations[state.currentIndex]),
                 studentMessages: state.conversations[state.currentIndex].records
                     ?.filter(r => r.type === 'message' && r.sender === 'B')
-                    .map(r => r.content)
-                    .join('\n\n') || '',
-                keywords: state.currentKeywordResult?.keywordPositions.map(k => k.keyword) || [],
+                    .map(r => r.content).join('\n\n') || '',
+                keywords: state.currentKeywordResult?.keywords || [],
                 enrichedContext: state.currentShortTermMemory + (state.currentFileContext ? `\n\n## File Context\n${state.currentFileContext}` : '')
             })
         });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
         const data = await response.json();
-        console.log('[Frontend] Consistency API raw response:', data);
-        
-        // UI ONLY shows the highlighted result, not the explanation
-        // Fallback to original reasoning if highlightedReasoning is missing
-        const resultHtml = data.highlightedReasoning || userReasoning || 'No results returned';
-        console.log('[Frontend] Final HTML to render:', resultHtml);
-        resultDisplay.innerHTML = resultHtml;
-        
+        resultDisplay.innerHTML = data.highlightedReasoning || userReasoning;
         showStep('result');
-        updateStatus('Check complete', 'idle');
+        updateStatus('Review AI check', 'idle');
     } catch (err) {
-        console.error('Consistency check error:', err);
-        resultDisplay.innerHTML = `<div class="error-text">Error checking consistency: ${err.message}</div>`;
         updateStatus('Error in consistency check', 'error');
     }
 });
 
-document.getElementById('btn-next-conversation').addEventListener('click', () => {
-    console.log('[Frontend] Next clicked. CurrentIndex:', state.currentIndex, 'Total:', state.conversations.length);
-    if (state.currentIndex < state.conversations.length - 1) {
-        const nextIndex = state.currentIndex + 1;
-        console.log('[Frontend] Proceeding to next index:', nextIndex);
-        startConversation(nextIndex);
-    } else {
-        console.log('[Frontend] No more conversations.');
-        alert('All conversations completed!');
+document.getElementById('btn-go-to-final').addEventListener('click', () => {
+    showStep('final');
+});
+
+// Final Step Logic
+document.getElementById('final-choice-group').addEventListener('change', (e) => {
+    state.finalSelection = e.target.value;
+    validateFinalStep();
+});
+
+document.getElementById('score-buttons').addEventListener('click', (e) => {
+    if (e.target.classList.contains('btn-score')) {
+        document.querySelectorAll('.btn-score').forEach(b => b.classList.remove('selected'));
+        e.target.classList.add('selected');
+        state.confidenceScore = parseInt(e.target.getAttribute('data-score'));
+        validateFinalStep();
     }
 });
 
-// Helper functions (extracted from backend logic)
-function extractFilePaths(conversation) {
-    const filePaths = [];
-    if (conversation.records) {
-        for (const record of conversation.records) {
-            if (record.type === 'file' && record.content) {
-                filePaths.push(record.content);
-            }
-        }
+function validateFinalStep() {
+    const btn = document.getElementById('btn-submit-final-result');
+    btn.disabled = !(state.finalSelection && state.confidenceScore > 0);
+}
+
+document.getElementById('btn-submit-final-result').addEventListener('click', async () => {
+    updateStatus('Saving results...', 'busy');
+    try {
+        const conversation = state.conversations[state.currentIndex];
+        const res = await fetch(`${API_URL}/save-results`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: state.userId,
+                projectId: state.project.name,
+                conversationId: conversation.conversation_id,
+                mode: state.isAgentAssist ? 'Agent-Assist' : 'Manual',
+                finalSelection: state.finalSelection,
+                confidence: state.confidenceScore,
+                reasoning: document.getElementById('user-reasoning-input').value.trim()
+            })
+        });
+        if (!res.ok) throw new Error('Save failed');
+        showStep('next');
+        updateStatus('Success', 'idle');
+    } catch (err) {
+        updateStatus('Failed to save results', 'error');
     }
-    return filePaths;
+});
+
+document.getElementById('btn-next-conversation').addEventListener('click', () => {
+    if (state.currentIndex < state.conversations.length - 1) {
+        startConversation(state.currentIndex + 1);
+    } else {
+        alert('All rounds for this project are completed. Refresh to try another project.');
+    }
+});
+
+// Helpers
+function extractFilePaths(conversation) {
+    return (conversation.records || []).filter(r => r.type === 'file').map(r => r.content);
 }
 
 function extractAdvisorFeedback(conversation) {
-    const feedbackMessages = [];
-    if (conversation.records) {
-        for (const record of conversation.records) {
-            if (record.type === 'message' && record.sender === 'A' && record.content) {
-                feedbackMessages.push(record.content);
-            }
-        }
-    }
-    return feedbackMessages.join('\n\n');
+    return (conversation.records || []).filter(r => r.type === 'message' && r.sender === 'A').map(r => r.content).join('\n\n');
 }
 
-// Global scope for onclick
 window.loadFile = loadFile;
-
-// Start the app
-init();
+// Note: init() is called by btn-setup-start listener
