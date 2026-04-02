@@ -85,6 +85,36 @@ app.get('/api/project', (req, res) => {
   });
 });
 
+// New: List all available projects
+app.get('/api/projects', (req, res) => {
+  const projectsDir = path.resolve(__dirname, '../projects');
+  try {
+    const folders = fs.readdirSync(projectsDir).filter(file => {
+      const fullPath = path.join(projectsDir, file);
+      return fs.statSync(fullPath).isDirectory() && !file.startsWith('.');
+    });
+    res.json({ projects: folders });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// New: Get a random project ID
+app.get('/api/random-project', (req, res) => {
+  const projectsDir = path.resolve(__dirname, '../projects');
+  try {
+    const folders = fs.readdirSync(projectsDir).filter(file => {
+      const fullPath = path.join(projectsDir, file);
+      return fs.statSync(fullPath).isDirectory() && !file.startsWith('.');
+    });
+    if (folders.length === 0) return res.status(404).json({ error: 'No projects found' });
+    const randomProject = folders[Math.floor(Math.random() * folders.length)];
+    res.json({ projectId: randomProject });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 2. Get conversations
 app.get('/api/conversations', (req, res) => {
   const projectPath = getProjectPath(req);

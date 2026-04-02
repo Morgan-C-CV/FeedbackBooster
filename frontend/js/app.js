@@ -51,24 +51,32 @@ function handleMouseMove(e) {
 // Initialize
 async function init() {
     try {
-        updateStatus('Initializing project...', 'busy');
+        updateStatus('Selecting random project...', 'busy');
         
-        // 1. Initialize session (Backup and clear)
+        // 1. Get a random project ID from backend
+        const randomRes = await fetch(`${API_URL}/random-project`);
+        if (!randomRes.ok) throw new Error('Failed to get random project');
+        const { projectId } = await randomRes.json();
+        console.log(`[Frontend] Random project selected: ${projectId}`);
+
+        updateStatus(`Initializing ${projectId}...`, 'busy');
+        
+        // 2. Initialize session (Backup and clear)
         const initRes = await fetch(`${API_URL}/init-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId: 'project01' })
+            body: JSON.stringify({ projectId })
         });
         if (!initRes.ok) throw new Error('Failed to initialize session');
 
-        // 2. Get project info
-        const projectRes = await fetch(`${API_URL}/project?projectId=project01`);
+        // 3. Get project info
+        const projectRes = await fetch(`${API_URL}/project?projectId=${projectId}`);
         if (!projectRes.ok) throw new Error('Failed to get project info');
         state.project = await projectRes.json();
         projectNameEl.textContent = `Project: ${state.project.name || 'Unknown'}`;
 
-        // 3. Get conversations (now reads from backup)
-        const convRes = await fetch(`${API_URL}/conversations?projectId=project01`);
+        // 4. Get conversations (now reads from backup)
+        const convRes = await fetch(`${API_URL}/conversations?projectId=${projectId}`);
         if (!convRes.ok) throw new Error('Failed to get conversations');
         state.conversations = await convRes.json() || [];
         
