@@ -53,7 +53,10 @@
         <!-- Step A: Analysis Trigger (Memory runs in background) -->
         <div id="interaction-step-analysis-trigger" class="interaction-step active">
             <div class="step-label">Ready for Analysis</div>
-            <p>Memory processing and file context retrieval are completed in the background. Click below to start the feedback analysis.</p>
+            <div id="analysis-trigger-hint" class="loading-inline is-loading">
+                <span class="inline-spinner" aria-hidden="true"></span>
+                <p id="analysis-trigger-message">Loading round context... You can start reviewing the conversation and files to gather the necessary information.</p>
+            </div>
             <button id="btn-start-analysis" disabled>Start Analysis</button>
         </div>
 

@@ -22,6 +22,8 @@ const conversationArea = document.getElementById('conversation-area');
 const fileContentArea = document.getElementById('file-content');
 const statusIndicator = document.getElementById('status-indicator');
 const setupOverlay = document.getElementById('setup-overlay');
+const analysisTriggerHintEl = document.getElementById('analysis-trigger-hint');
+const analysisTriggerMessageEl = document.getElementById('analysis-trigger-message');
 
 // Interaction steps
 const steps = {
@@ -127,6 +129,19 @@ function updateStatus(text, type = 'idle') {
     statusIndicator.className = `status-indicator status-${type}`;
 }
 
+function setAnalysisTriggerMessage(text) {
+    if (analysisTriggerMessageEl) analysisTriggerMessageEl.textContent = text;
+}
+
+function setAnalysisTriggerLoading(isLoading) {
+    if (!analysisTriggerHintEl) return;
+    analysisTriggerHintEl.classList.toggle('is-loading', isLoading);
+}
+
+function createInlineLoadingText(text) {
+    return `<span class="inline-loading"><span class="inline-spinner" aria-hidden="true"></span><span>${text}</span></span>`;
+}
+
 async function startConversation(index) {
     state.currentIndex = index;
     state.finalSelection = '';
@@ -150,10 +165,12 @@ async function startConversation(index) {
     if (state.isAgentAssist) {
         showStep('analysisTrigger');
         document.getElementById('btn-start-analysis').disabled = true;
-        updateStatus(`Processing Round ${index + 1}/${state.conversations.length}`, 'busy');
+        setAnalysisTriggerLoading(true);
+        updateStatus(`Loading round ${index + 1}/${state.conversations.length} context...`, 'busy');
+        setAnalysisTriggerMessage(`Loading Round ${index + 1}/${state.conversations.length} context... You can review the conversation and files to gather the necessary information.`);
 
         try {
-            // Background processing
+            updateStatus('Building memory context...', 'busy');
             const memoryRes = await fetch(`${API_URL}/process-memory`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -166,6 +183,7 @@ async function startConversation(index) {
             state.currentShortTermMemory = memoryData.shortTermMemory;
             
             const filePaths = extractFilePaths(conversation);
+            updateStatus('Retrieving linked file context...', 'busy');
             const contextRes = await fetch(`${API_URL}/file-context`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -178,10 +196,14 @@ async function startConversation(index) {
             state.currentFileContext = contextData.fileContext;
 
             document.getElementById('btn-start-analysis').disabled = false;
-            updateStatus('Ready for analysis', 'idle');
+            setAnalysisTriggerLoading(false);
+            setAnalysisTriggerMessage('Round context is ready. Click Start Analysis when you are ready.');
+            updateStatus('Round context is ready', 'idle');
         } catch (err) {
             console.error('Background processing error:', err);
-            updateStatus('Error in processing', 'error');
+            setAnalysisTriggerLoading(false);
+            setAnalysisTriggerMessage('Failed to load round context. Please refresh and try again.');
+            updateStatus('Error while loading context', 'error');
         }
     } else {
         // Manual Mode: Skip to Final Step immediately
@@ -234,7 +256,9 @@ function showStep(stepName) {
 
 // Event Listeners for Steps
 document.getElementById('btn-start-analysis').addEventListener('click', async () => {
-    updateStatus('Generating interpretations...', 'busy');
+    updateStatus('Preparing interpretation request...', 'busy');
+    document.getElementById('task-level-reasoning').innerHTML = createInlineLoadingText('Generating task-level interpretation...');
+    document.getElementById('process-level-reasoning').innerHTML = createInlineLoadingText('Generating process-level interpretation...');
     showStep('analysis');
 
     const conversation = state.conversations[state.currentIndex];
@@ -249,6 +273,7 @@ document.getElementById('btn-start-analysis').addEventListener('click', async ()
     ].filter(Boolean).join('\n\n');
 
     try {
+        updateStatus('Analyzing feedback and generating dual interpretations...', 'busy');
         const res = await fetch(`${API_URL}/analyze-feedback`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -258,13 +283,16 @@ document.getElementById('btn-start-analysis').addEventListener('click', async ()
         state.currentKeywordResult = data.keywordResult;
         state.currentDualResult = data.dualResult;
 
+        updateStatus('Rendering interpretation results...', 'busy');
         document.getElementById('task-level-reasoning').textContent = data.dualResult.taskLevelInterpretation.reasoning;
         document.getElementById('process-level-reasoning').textContent = data.dualResult.processLevelInterpretation.reasoning;
         highlightAdvisorMessages(data.keywordResult.keywordPositions);
         
-        updateStatus('Select an interpretation', 'idle');
+        updateStatus('Interpretations are ready. Select the primary factor.', 'idle');
     } catch (err) {
-        updateStatus('Error in analysis', 'error');
+        document.getElementById('task-level-reasoning').textContent = 'Failed to generate interpretation.';
+        document.getElementById('process-level-reasoning').textContent = 'Failed to generate interpretation.';
+        updateStatus('Error during interpretation generation', 'error');
     }
 });
 
