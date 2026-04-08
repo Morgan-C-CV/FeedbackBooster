@@ -1,0 +1,2 @@
+Timestamp,UserID,ProjectID,ConversationID,Mode,FinalSelection,Confidence,Reasoning
+"2026-04-02T21:28:28.885Z","T01","project01","round_01_initial_proposal","Agent-Assist","Process-Level","5","I need to narrow down"
