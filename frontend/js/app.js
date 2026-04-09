@@ -4,9 +4,13 @@ const API_URL = 'http://localhost:3001/api';
 let state = {
     userId: '',
     isAgentAssist: true,
+    isExperimentMode: true,
     project: null,
     conversations: [],
     currentIndex: 0,
+    currentRoundIndex: 0,
+    sessionPlan: [],
+    currentMethod: null,
     currentShortTermMemory: '',
     currentDualResult: null,
     currentKeywordResult: null,
@@ -22,8 +26,38 @@ const conversationArea = document.getElementById('conversation-area');
 const fileContentArea = document.getElementById('file-content');
 const statusIndicator = document.getElementById('status-indicator');
 const setupOverlay = document.getElementById('setup-overlay');
+const methodBadgeEl = document.getElementById('method-badge');
 const analysisTriggerHintEl = document.getElementById('analysis-trigger-hint');
 const analysisTriggerMessageEl = document.getElementById('analysis-trigger-message');
+const manualReasoningContainerEl = document.getElementById('manual-reasoning-container');
+const manualReasoningInputEl = document.getElementById('manual-reasoning-input');
+
+const METHOD_CONFIG = {
+    method1: {
+        id: 'method1',
+        shortLabel: 'Method 1 · Human-Only',
+        mode: 'Human-Only',
+        description: 'Human-only mode: Do not use any external tool. Make your own judgment and provide reasoning directly.',
+        useRmaAssist: false,
+        showConsistencyCheck: false
+    },
+    method2: {
+        id: 'method2',
+        shortLabel: 'Method 2 · Chatbot-Assisted',
+        mode: 'Chatbot-Assisted',
+        description: 'Chatbot-assisted mode: You may use Gemini as support. The system will not run memory, highlighting, or consistency check.',
+        useRmaAssist: false,
+        showConsistencyCheck: false
+    },
+    method3: {
+        id: 'method3',
+        shortLabel: 'Method 3 · RMA-Assist',
+        mode: 'RMA-Assist',
+        description: 'RMA-Assist mode: Use the full workflow with memory, keyword highlighting, dual interpretations, and consistency check.',
+        useRmaAssist: true,
+        showConsistencyCheck: true
+    }
+};
 
 // Interaction steps
 const steps = {
@@ -69,6 +103,7 @@ document.getElementById('btn-setup-start').addEventListener('click', () => {
     
     state.userId = userIdInput;
     state.isAgentAssist = document.getElementById('agent-assist-toggle').checked;
+    state.isExperimentMode = document.getElementById('experiment-mode-toggle').checked;
     
     // Apply mode to body for CSS targeting
     if (state.isAgentAssist) {
@@ -78,50 +113,149 @@ document.getElementById('btn-setup-start').addEventListener('click', () => {
     }
     
     setupOverlay.style.display = 'none';
-    console.log(`[Setup] User: ${state.userId}, Assist: ${state.isAgentAssist}`);
+    console.log(`[Setup] User: ${state.userId}, Assist: ${state.isAgentAssist}, Experiment: ${state.isExperimentMode}`);
     init();
 });
+
+document.getElementById('experiment-mode-toggle').addEventListener('change', (e) => {
+    const isExperimentMode = e.target.checked;
+    const assistToggle = document.getElementById('agent-assist-toggle');
+    assistToggle.disabled = isExperimentMode;
+    if (isExperimentMode) {
+        assistToggle.checked = true;
+    }
+});
+
+document.getElementById('agent-assist-toggle').disabled = document.getElementById('experiment-mode-toggle').checked;
 
 // Initialize
 async function init() {
     try {
+        if (state.isExperimentMode) {
+            updateStatus('Preparing 6-round experiment plan...', 'busy');
+            const projectsRes = await fetch(`${API_URL}/projects`);
+            if (!projectsRes.ok) throw new Error('Failed to get project list');
+            const projectsData = await projectsRes.json();
+            const projectIds = projectsData.projects || [];
+            if (!projectIds.length) throw new Error('No projects available');
+
+            state.sessionPlan = buildExperimentPlan(projectIds);
+            state.currentRoundIndex = 0;
+            await loadRoundFromPlan(0);
+            return;
+        }
+
         updateStatus('Selecting random project...', 'busy');
-        
-        // 1. Get a random project ID from backend
         const randomRes = await fetch(`${API_URL}/random-project`);
         if (!randomRes.ok) throw new Error('Failed to get random project');
         const { projectId } = await randomRes.json();
 
-        updateStatus(`Initializing ${projectId}...`, 'busy');
-        
-        // 2. Initialize session
-        const initRes = await fetch(`${API_URL}/init-session`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId })
-        });
-        if (!initRes.ok) throw new Error('Failed to initialize session');
-
-        // 3. Get project info
-        const projectRes = await fetch(`${API_URL}/project?projectId=${projectId}`);
-        if (!projectRes.ok) throw new Error('Failed to get project info');
-        state.project = await projectRes.json();
-        projectNameEl.textContent = `Project: ${state.project.name || 'Unknown'}`;
-
-        // 4. Get conversations
-        const convRes = await fetch(`${API_URL}/conversations?projectId=${projectId}`);
-        if (!convRes.ok) throw new Error('Failed to get conversations');
-        state.conversations = await convRes.json() || [];
-        
-        if (state.conversations.length > 0) {
-            startConversation(0);
-        } else {
-            updateStatus('No conversations found', 'error');
-        }
+        state.sessionPlan = [{
+            projectId,
+            methodId: state.isAgentAssist ? 'method3' : 'method1'
+        }];
+        state.currentRoundIndex = 0;
+        await loadRoundFromPlan(0);
     } catch (err) {
         console.error('Initialization error:', err);
         updateStatus('Initialization failed', 'error');
     }
+}
+
+function shuffleArray(source) {
+    const arr = [...source];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function buildExperimentPlan(projectIds) {
+    const shuffledProjects = shuffleArray(projectIds);
+    const selectedProjects = [];
+
+    for (let i = 0; i < 6; i++) {
+        selectedProjects.push(shuffledProjects[i % shuffledProjects.length]);
+    }
+
+    const methodPool = shuffleArray([
+        'method1', 'method1',
+        'method2', 'method2',
+        'method3', 'method3'
+    ]);
+
+    return selectedProjects.map((projectId, i) => ({
+        projectId,
+        methodId: methodPool[i]
+    }));
+}
+
+function getCurrentMethodConfig() {
+    if (!state.currentMethod) return METHOD_CONFIG.method1;
+    return METHOD_CONFIG[state.currentMethod.id] || METHOD_CONFIG.method1;
+}
+
+function isCurrentRoundRmaAssist() {
+    return getCurrentMethodConfig().useRmaAssist;
+}
+
+function setMethodBadge() {
+    const method = getCurrentMethodConfig();
+    if (!methodBadgeEl) return;
+    methodBadgeEl.textContent = method.shortLabel;
+    methodBadgeEl.classList.add('visible');
+}
+
+function showRoundMethodDialog() {
+    const method = getCurrentMethodConfig();
+    const totalRounds = state.sessionPlan.length;
+    const roundNumber = state.currentRoundIndex + 1;
+    alert(`Round ${roundNumber}/${totalRounds}\n${method.shortLabel}\n\n${method.description}`);
+}
+
+async function loadRoundFromPlan(roundIndex) {
+    state.currentRoundIndex = roundIndex;
+    state.currentMethod = state.sessionPlan[roundIndex];
+
+    if (!state.currentMethod) {
+        updateStatus('No round plan found', 'error');
+        return;
+    }
+
+    const { projectId } = state.currentMethod;
+    if (isCurrentRoundRmaAssist()) {
+        document.body.classList.add('mode-assist');
+    } else {
+        document.body.classList.remove('mode-assist');
+    }
+    updateStatus(`Initializing round ${roundIndex + 1}/${state.sessionPlan.length}...`, 'busy');
+
+    const initRes = await fetch(`${API_URL}/init-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId })
+    });
+    if (!initRes.ok) throw new Error('Failed to initialize session');
+
+    const projectRes = await fetch(`${API_URL}/project?projectId=${projectId}`);
+    if (!projectRes.ok) throw new Error('Failed to get project info');
+    state.project = await projectRes.json();
+    projectNameEl.textContent = `Project: ${state.project.name || 'Unknown'}`;
+    setMethodBadge();
+
+    const convRes = await fetch(`${API_URL}/conversations?projectId=${projectId}`);
+    if (!convRes.ok) throw new Error('Failed to get conversations');
+    const allConversations = await convRes.json() || [];
+    state.conversations = allConversations.length ? [allConversations[0]] : [];
+
+    if (!state.conversations.length) {
+        updateStatus('No conversations found', 'error');
+        return;
+    }
+
+    showRoundMethodDialog();
+    startConversation(0);
 }
 
 function updateStatus(text, type = 'idle') {
@@ -154,6 +288,7 @@ async function startConversation(index) {
     // Reset inputs
     const reasoningInput = document.getElementById('user-reasoning-input');
     if (reasoningInput) reasoningInput.value = '';
+    if (manualReasoningInputEl) manualReasoningInputEl.value = '';
     
     // Reset final step UI
     document.querySelectorAll('input[name="final-level"]').forEach(rb => rb.checked = false);
@@ -162,12 +297,13 @@ async function startConversation(index) {
 
     renderConversation(conversation);
 
-    if (state.isAgentAssist) {
+    if (isCurrentRoundRmaAssist()) {
+        if (manualReasoningContainerEl) manualReasoningContainerEl.classList.remove('active');
         showStep('analysisTrigger');
         document.getElementById('btn-start-analysis').disabled = true;
         setAnalysisTriggerLoading(true);
-        updateStatus(`Loading round ${index + 1}/${state.conversations.length} context...`, 'busy');
-        setAnalysisTriggerMessage(`Loading Round ${index + 1}/${state.conversations.length} context... You can review the conversation and files to gather the necessary information.`);
+        updateStatus(`Loading round ${state.currentRoundIndex + 1}/${state.sessionPlan.length} context...`, 'busy');
+        setAnalysisTriggerMessage(`Loading Round ${state.currentRoundIndex + 1}/${state.sessionPlan.length} context... You can review the conversation and files to gather the necessary information.`);
 
         try {
             updateStatus('Building memory context...', 'busy');
@@ -206,8 +342,9 @@ async function startConversation(index) {
             updateStatus('Error while loading context', 'error');
         }
     } else {
-        // Manual Mode: Skip to Final Step immediately
-        updateStatus('Review conversation then make your decision', 'idle');
+        if (manualReasoningContainerEl) manualReasoningContainerEl.classList.add('active');
+        updateStatus('Review the conversation, then provide your reasoning and final decision', 'idle');
+        setAnalysisTriggerLoading(false);
         showStep('final');
     }
 }
@@ -326,6 +463,13 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
     const userReasoning = document.getElementById('user-reasoning-input').value.trim();
     if (!userReasoning) return alert('Please provide your reasoning.');
 
+    if (!getCurrentMethodConfig().showConsistencyCheck) {
+        updateStatus('Reasoning saved. Continue to final decision.', 'idle');
+        showStep('final');
+        validateFinalStep();
+        return;
+    }
+
     updateStatus('Checking consistency...', 'busy');
     const resultDisplay = document.getElementById('evaluated-reasoning');
     resultDisplay.innerHTML = '<div class="loading-spinner">Analyzing with AI...</div>';
@@ -356,6 +500,7 @@ document.getElementById('btn-submit-reasoning').addEventListener('click', async 
 
 document.getElementById('btn-go-to-final').addEventListener('click', () => {
     showStep('final');
+    validateFinalStep();
 });
 
 // Final Step Logic
@@ -373,9 +518,16 @@ document.getElementById('score-buttons').addEventListener('click', (e) => {
     }
 });
 
+if (manualReasoningInputEl) {
+    manualReasoningInputEl.addEventListener('input', validateFinalStep);
+}
+
 function validateFinalStep() {
     const btn = document.getElementById('btn-submit-final-result');
-    btn.disabled = !(state.finalSelection && state.confidenceScore > 0);
+    const manualReasoning = manualReasoningInputEl ? manualReasoningInputEl.value.trim() : '';
+    const stepReasoning = document.getElementById('user-reasoning-input').value.trim();
+    const hasReasoning = isCurrentRoundRmaAssist() ? !!stepReasoning : !!manualReasoning;
+    btn.disabled = !(state.finalSelection && state.confidenceScore > 0 && hasReasoning);
 }
 
 document.getElementById('btn-submit-final-result').addEventListener('click', async () => {
@@ -389,10 +541,12 @@ document.getElementById('btn-submit-final-result').addEventListener('click', asy
                 userId: state.userId,
                 projectId: state.project.name,
                 conversationId: conversation.conversation_id,
-                mode: state.isAgentAssist ? 'Agent-Assist' : 'Manual',
+                mode: getCurrentMethodConfig().mode,
                 finalSelection: state.finalSelection,
                 confidence: state.confidenceScore,
-                reasoning: document.getElementById('user-reasoning-input').value.trim()
+                reasoning: isCurrentRoundRmaAssist()
+                    ? document.getElementById('user-reasoning-input').value.trim()
+                    : (manualReasoningInputEl ? manualReasoningInputEl.value.trim() : '')
             })
         });
         if (!res.ok) throw new Error('Save failed');
@@ -404,11 +558,16 @@ document.getElementById('btn-submit-final-result').addEventListener('click', asy
 });
 
 document.getElementById('btn-next-conversation').addEventListener('click', () => {
-    if (state.currentIndex < state.conversations.length - 1) {
-        startConversation(state.currentIndex + 1);
-    } else {
-        alert('All rounds for this project are completed. Refresh to try another project.');
+    const nextRound = state.currentRoundIndex + 1;
+    if (nextRound < state.sessionPlan.length) {
+        loadRoundFromPlan(nextRound).catch((err) => {
+            console.error(err);
+            updateStatus('Failed to load next round', 'error');
+        });
+        return;
     }
+    alert('All experiment rounds are completed. Thank you for participating.');
+    updateStatus('Experiment completed', 'idle');
 });
 
 // Helpers

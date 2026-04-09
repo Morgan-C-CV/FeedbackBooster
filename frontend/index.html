@@ -10,6 +10,7 @@
     <header id="title-bar">
         <div class="project-info">
             <span id="project-name">Project: Loading...</span>
+            <span id="method-badge" class="method-badge"></span>
         </div>
         <div class="status-indicator" id="status-indicator">Idle</div>
     </header>
@@ -23,10 +24,17 @@
                 <input type="text" id="user-id" placeholder="e.g. 001">
                 <div class="setup-toggle">
                     <label>Enable Agent Assist:</label>
-                    <div class="toggle-switch">
+                    <label class="toggle-switch">
                         <input type="checkbox" id="agent-assist-toggle" checked>
                         <span class="slider round"></span>
-                    </div>
+                    </label>
+                </div>
+                <div class="setup-toggle">
+                    <label>Experiment Mode:</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="experiment-mode-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
                 </div>
                 <button id="btn-setup-start">Start Study</button>
             </div>
@@ -99,6 +107,10 @@
         <div id="interaction-step-final" class="interaction-step">
             <div class="step-label">Final Decision & Confidence</div>
             <div class="final-selection-container">
+                <div id="manual-reasoning-container" class="manual-reasoning-container">
+                    <p>Brief Reasoning:</p>
+                    <textarea id="manual-reasoning-input" placeholder="Explain why you chose this level..."></textarea>
+                </div>
                 <div class="final-choice">
                     <p>Final Level Choice:</p>
                     <div class="radio-group" id="final-choice-group">

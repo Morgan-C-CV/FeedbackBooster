@@ -50,6 +50,26 @@ body {
     animation: spin 0.8s linear infinite;
 }
 
+.project-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.method-badge {
+    display: none;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background-color: rgba(37, 99, 235, 0.2);
+    color: #dbeafe;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.method-badge.visible {
+    display: inline-block;
+}
+
 #main-content {
     flex: 1;
     display: flex;
@@ -476,6 +496,18 @@ input:checked + .slider:before {
     background-color: #f8fafc;
     border: 1px solid var(--border-color);
     border-radius: 8px;
+}
+
+.manual-reasoning-container {
+    display: none;
+}
+
+.manual-reasoning-container.active {
+    display: block;
+}
+
+#manual-reasoning-input {
+    min-height: 80px;
 }
 
 .radio-group {
