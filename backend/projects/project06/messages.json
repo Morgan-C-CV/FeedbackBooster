@@ -1,0 +1,70 @@
+[
+  {
+    "conversation_id": "round_01_project06",
+    "participants": {
+      "A": "Advisor (Prof. Martin Schmidt)",
+      "B": "Student (Sara)"
+    },
+    "project": "Cognitive Load Cues in VR Remote Lab Collaboration",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-06T09:00:00+03:00",
+        "sender": "B",
+        "content": "Prof. Schmidt, attached is the first draft. I'm trying to understand how people in a shared VR lab know when their partner is confused or overloaded. Right now the draft leans on status cues, but I'm not sure the questions are tight enough."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-06T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project06/files/f1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-06T15:30:00+03:00",
+        "sender": "A",
+        "content": "The problem is interesting, but you're jumping too fast from 'this seems hard to read in VR' to 'I'll detect cognitive load'. That becomes a sensing project very quickly. Start simpler. What cues help people notice a partner is struggling, and which of those are actually useful in collaboration?"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-06T16:05:00+03:00",
+        "sender": "B",
+        "content": "That makes sense. I'll step back from detection and keep it on cues people can actually use during the task."
+      }
+    ]
+  },
+  {
+    "conversation_id": "round_02_project06",
+    "participants": {
+      "A": "Advisor (Prof. Martin Schmidt)",
+      "B": "Student (Sara)"
+    },
+    "project": "Cognitive Load Cues in VR Remote Lab Collaboration",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-13T09:00:00+03:00",
+        "sender": "B",
+        "content": "I reworked the proposal in f2.pdf. It now focuses on lightweight collaboration cues instead of hidden-state detection, and I defined the task as a paired VR lab where one person manipulates equipment and the other tracks the procedure."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-13T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project06/files/f2.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-13T15:30:00+03:00",
+        "sender": "A",
+        "content": "Good direction. But 'lightweight cues' is still too vague. I need to know what those cues actually are. Also be explicit about the trade-off here: the cue should help coordination without humiliating the person who's stuck or cluttering the scene."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-13T16:05:00+03:00",
+        "sender": "B",
+        "content": "Okay. I'll make the cue set concrete and frame the study around that coordination-versus-social-cost trade-off."
+      }
+    ]
+  }
+]

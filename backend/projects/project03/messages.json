@@ -1,57 +1,69 @@
 [
   {
-    "conversation_id": "round_01_traffic_gcn",
+    "conversation_id": "round_01_project03",
     "participants": {
-      "A": "Advisor (Dr. Schmidt)",
-      "B": "Student (Sarah)"
+      "A": "Advisor (Prof. Dana Liu)",
+      "B": "Student (Nora)"
     },
-    "project": "Unified Graph Neural Network Architectures for Predictive Urban Traffic Analytics",
+    "project": "LLM Feedback Dashboards for First-Year Academic Writing",
     "records": [
       {
         "type": "message",
-        "time": "2026-03-25T10:00:00+08:00",
+        "time": "2026-04-04T09:00:00+03:00",
         "sender": "B",
-        "content": "Dr. Schmidt, I've drafted my proposal for a universal traffic prediction system. I want to build a GCN that can be trained on OSM road graphs from any city and generalize across layouts. f1.pdf is the first version."
+        "content": "Prof. Liu, attaching the first draft. I want to work on AI support for first-year writing, but I know 'AI in education' is too vague. I tried to narrow it to dashboard-style feedback on essay drafts, though I think I'm still mixing interface questions with teaching claims."
       },
       {
         "type": "file",
-        "time": "2026-03-25T10:01:00+08:00",
+        "time": "2026-04-04T09:02:00+03:00",
         "sender": "B",
         "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project03/files/f1.pdf"
       },
       {
         "type": "message",
-        "time": "2026-03-25T15:10:00+08:00",
+        "time": "2026-04-04T15:30:00+03:00",
         "sender": "A",
-        "content": "Sarah, while the idea of a 'unified' GCN for all cities is elegant, local driving cultures, traffic laws, and specific congestion bottlenecks make it difficult to generalize without massive data. Why not start with London? It has excellent open data (TfL) and a very complex graph. Also, your current model is text/sensor only. Have you considered multimodal factors like bike-sharing demand? It fluctuates wildly and affects car traffic."
+        "content": "You're right, it's still mixed. There is an HCI project in here, but it isn't 'does AI improve writing'. f1.pdf is promising better writing, better confidence, and less staff workload all at once. That's too much. The part worth keeping is how students read and interpret the feedback."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-04T16:05:00+03:00",
+        "sender": "B",
+        "content": "Okay, that helps. I'll cut the bigger learning claims and stay with how students read, sort, and act on the feedback."
       }
     ]
   },
   {
-    "conversation_id": "round_02_london_bikes",
+    "conversation_id": "round_02_project03",
     "participants": {
-      "A": "Advisor (Dr. Schmidt)",
-      "B": "Student (Sarah)"
+      "A": "Advisor (Prof. Dana Liu)",
+      "B": "Student (Nora)"
     },
-    "project": "Unified Graph Neural Network Architectures for Predictive Urban Traffic Analytics",
+    "project": "LLM Feedback Dashboards for First-Year Academic Writing",
     "records": [
       {
         "type": "message",
-        "time": "2026-03-27T09:00:00+08:00",
+        "time": "2026-04-10T09:00:00+03:00",
         "sender": "B",
-        "content": "I've revised the proposal. I'm now focusing on a Spatial-Temporal GCN for London's bike-sharing system. I've integrated weather and holiday data into the feature set. f2.pdf contains the updated ST-GCN architecture."
+        "content": "I've revised the scope in f2.pdf. It's now about how first-year students interpret and prioritize AI comments in a dashboard, not whether the tool improves writing overall. I also moved trust and actionability closer to the center."
       },
       {
         "type": "file",
-        "time": "2026-03-27T09:01:00+08:00",
+        "time": "2026-04-10T09:02:00+03:00",
         "sender": "B",
         "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project03/files/f2.pdf"
       },
       {
         "type": "message",
-        "time": "2026-03-27T16:30:00+08:00",
+        "time": "2026-04-10T15:30:00+03:00",
         "sender": "A",
-        "content": "The ST-GCN in f2.pdf is a solid step forward. But it assumes a static road graph with fixed edge weights. In London, road segments go offline frequently, and 'importance' of a connection is dynamic. How will you handle sparse or failing sensors? A fixed GCN kernel will propagate errors. Consider moving towards an Adaptive Graph Attention mechanism (GAT)."
+        "content": "This is more coherent. The remaining issue is that your method still assumes students can explain their confusion after everything is over. I'd rather see you capture that in the moment. Add logging, and be more concrete about the kinds of misunderstanding you're actually looking for."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-10T16:05:00+03:00",
+        "sender": "B",
+        "content": "Will do. I'll add click traces and use the recording for stimulated recall. I'll also define the misread categories more clearly."
       }
     ]
   }

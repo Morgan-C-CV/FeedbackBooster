@@ -1,69 +1,97 @@
 [
   {
-    "conversation_id": "round_01_initial_proposal",
+    "conversation_id": "round_01_project01",
     "participants": {
-      "A": "Advisor",
-      "B": "Student"
+      "A": "Advisor (Prof. Helen Carter)",
+      "B": "Student (Mia)"
     },
-    "project": "Adaptive Contrastive Learning for Low-Resource Scientific Entity Linking",
+    "project": "Voice-Based Medication Support for Older Adults with Mild Visual Impairment",
     "records": [
       {
         "type": "message",
-        "time": "2026-03-20T10:00:00+08:00",
+        "time": "2026-04-02T09:00:00+03:00",
         "sender": "B",
-        "content": "Professor, I've drafted my first research proposal. I'm interested in building a universal system for scientific entity linking using multimodal features. Attached is the initial draft."
+        "content": "Prof. Carter, I sent over a first draft. I started with voice assistants for older adults and ended up centering it on medication reminders at home, but I think it may still be trying to do too much. Could you tell me honestly if the scope is manageable?"
       },
       {
         "type": "file",
-        "time": "2026-03-20T10:01:15+08:00",
+        "time": "2026-04-02T09:02:00+03:00",
         "sender": "B",
         "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project01/files/f1.pdf"
       },
       {
         "type": "message",
-        "time": "2026-03-20T14:30:45+08:00",
+        "time": "2026-04-02T15:30:00+03:00",
         "sender": "A",
-        "content": "I've looked at f1.pdf. The scope is far too broad. 'Universal' systems for 'all scientific domains' are rarely successful as research projects because you can't evaluate them properly. You need to narrow this down to a specific domain where low-resource data is a real bottleneck—like rare diseases in Biomedicine or niche Material Science topics. Also, your mention of 'multimodal' is vague. Are you actually using figures, or just metadata?"
+        "content": "Mia, there is something good in here, but right now it is doing four projects at once. You have trust, adherence, accessibility, and acceptance all mixed together. Pick one problem. The strongest one, to me, is what happens when a reminder is missed or unclear and the user has to recover from that."
       },
       {
         "type": "message",
-        "time": "2026-03-20T14:45:12+08:00",
+        "time": "2026-04-02T16:05:00+03:00",
         "sender": "B",
-        "content": "I see. I was trying to be ambitious, but I understand the evaluation problem. I'll focus on the Biomedical domain and clarify the multimodal aspect—I intended to use chemical structure diagrams as an additional modality."
+        "content": "Yes, I can see that now. I kept broadening it instead of choosing. I'll cut it back and focus on the reminder-repair part."
       }
     ]
   },
   {
-    "conversation_id": "round_02_refinement",
+    "conversation_id": "round_02_project01",
     "participants": {
-      "A": "Advisor",
-      "B": "Student"
+      "A": "Advisor (Prof. Helen Carter)",
+      "B": "Student (Mia)"
     },
-    "project": "Adaptive Contrastive Learning for Low-Resource Scientific Entity Linking",
+    "project": "Voice-Based Medication Support for Older Adults with Mild Visual Impairment",
     "records": [
       {
         "type": "message",
-        "time": "2026-03-22T09:15:00+08:00",
+        "time": "2026-04-08T09:00:00+03:00",
         "sender": "B",
-        "content": "I've revised the proposal. I'm now focusing on 'Contrastive Learning for Biomedical Entity Linking' with a focus on low-resource scenarios. I've removed the universal claims and specified how I'll use chemical structure images."
+        "content": "I've reworked it. f2.pdf is now about breakdown recovery after a missed or confusing reminder, and I dropped most of the general technology-acceptance material. I also cut the diary part and switched to scenario sessions, which feels more realistic."
       },
       {
         "type": "file",
-        "time": "2026-03-22T09:16:20+08:00",
+        "time": "2026-04-08T09:02:00+03:00",
         "sender": "B",
         "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project01/files/f2.pdf"
       },
       {
         "type": "message",
-        "time": "2026-03-22T16:20:10+08:00",
+        "time": "2026-04-08T15:30:00+03:00",
         "sender": "A",
-        "content": "The focus on Biomedicine in f2.pdf is better. However, your contrastive learning strategy is still quite standard. For low-resource entities, the main challenge is the lack of positive pairs for training. You mention 'data augmentation' in Section 3.2, but it's very hand-wavy. How exactly will you generate these pairs without introducing too much noise? This is the core of the methodology you need to solve."
+        "content": "This version is much clearer. The next problem is the method. You say you want to evaluate whether the design works, but I still don't know what a successful recovery actually means in your study. Tighten that up. And think about using Wizard-of-Oz rather than a fixed script. You'll learn more from the interaction that way."
       },
       {
         "type": "message",
-        "time": "2026-03-22T16:35:55+08:00",
+        "time": "2026-04-08T16:05:00+03:00",
         "sender": "B",
-        "content": "You're right. My augmentation plan was just simple synonym replacement, which might not be enough. I'll think about a more 'adaptive' way to generate context-aware pairs using a generative model."
+        "content": "Got it. I'll define the recovery outcomes properly and move the prototype plan to Wizard-of-Oz."
+      }
+    ]
+  },
+  {
+    "conversation_id": "round_03_project01",
+    "participants": {
+      "A": "Advisor (Prof. Helen Carter)",
+      "B": "Student (Mia)"
+    },
+    "project": "Voice-Based Medication Support for Older Adults with Mild Visual Impairment",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-14T09:00:00+03:00",
+        "sender": "B",
+        "content": "I've attached the third version. In f3.pdf I pinned down the recovery measures, tightened the contribution around repair strategies, and wrote out the Wizard-of-Oz protocol more carefully."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-14T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project01/files/f3.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-14T15:30:00+03:00",
+        "sender": "A",
+        "content": "This is in good shape now. The question, participants, and method finally line up. Just keep yourself from drifting back into big adherence claims later unless the data really justifies it."
       }
     ]
   }

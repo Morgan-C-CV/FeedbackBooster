@@ -1,0 +1,70 @@
+[
+  {
+    "conversation_id": "round_01_project11",
+    "participants": {
+      "A": "Mentor (Prof. Akiko Tanaka)",
+      "B": "Student (Lina)"
+    },
+    "project": "Turn-Taking Signals for Social Robots in Language Practice",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-10T09:00:00+03:00",
+        "sender": "B",
+        "content": "Prof. Tanaka, attached is my initial proposal. I'm interested in those awkward moments in language practice when the learner isn't sure whether the robot expects an answer, wants them to continue, or is just pausing. I think the topic is there, but the method is still fuzzy."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-10T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project11/files/f1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-10T15:30:00+03:00",
+        "sender": "A",
+        "content": "The topic is good. But the draft still wanders into broad learning-gain claims, and I don't think you need those. Keep it on conversational coordination. The interesting question is what kinds of turn-taking cues help hesitant learners know when to speak."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-10T16:05:00+03:00",
+        "sender": "B",
+        "content": "That makes sense. I'll narrow it to the coordination cues and drop the broader learning-outcome claims."
+      }
+    ]
+  },
+  {
+    "conversation_id": "round_02_project11",
+    "participants": {
+      "A": "Mentor (Prof. Akiko Tanaka)",
+      "B": "Student (Lina)"
+    },
+    "project": "Turn-Taking Signals for Social Robots in Language Practice",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-17T09:00:00+03:00",
+        "sender": "B",
+        "content": "I've revised the project in f2.pdf. It now centers on turn-taking ambiguity for hesitant learners and compares verbal and nonverbal handoff cues directly. I also removed the long-term learning claims."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-17T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project11/files/f2.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-17T15:30:00+03:00",
+        "sender": "A",
+        "content": "Much stronger. The last thing I'd tighten is the learner group. Beginners and advanced learners won't react the same way here. Narrow the participant profile, and make sure the tasks create real hesitation instead of staged silence."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-17T16:05:00+03:00",
+        "sender": "B",
+        "content": "Will do. I'll target lower-intermediate learners and design the prompts so hesitation comes up naturally."
+      }
+    ]
+  }
+]

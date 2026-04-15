@@ -1,0 +1,36 @@
+[
+  {
+    "conversation_id": "round_01_project08",
+    "participants": {
+      "A": "Advisor (Dr. Samuel Greene)",
+      "B": "Student (Ava)"
+    },
+    "project": "Wearable Haptic Prompts for Emotion Regulation at Work",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-08T09:00:00+03:00",
+        "sender": "B",
+        "content": "Dr. Greene, sending the first draft here. I came into it from personal informatics, but I don't want the thesis to slide into a clinical stress study. Right now it's about discreet haptic prompts that nudge short regulation actions during tense work moments."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-08T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project08/files/f1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-08T15:30:00+03:00",
+        "sender": "A",
+        "content": "The artifact is interesting, but you need to watch the framing. f1.pdf starts to sound like you're evaluating a mental-health intervention. Keep it grounded in HCI: timing, intrusiveness, and how people read the prompt in context."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-08T16:05:00+03:00",
+        "sender": "B",
+        "content": "Understood. I'll keep it on how people interpret and use the prompt at work, not on therapeutic outcomes."
+      }
+    ]
+  }
+]

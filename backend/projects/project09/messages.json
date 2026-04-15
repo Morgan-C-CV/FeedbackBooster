@@ -1,0 +1,70 @@
+[
+  {
+    "conversation_id": "round_01_project09",
+    "participants": {
+      "A": "Advisor (Prof. Elena Kovacs)",
+      "B": "Student (Yusuf)"
+    },
+    "project": "Multilingual Civic Reporting Chatbots for New Migrants",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-08T09:00:00+03:00",
+        "sender": "B",
+        "content": "Prof. Kovacs, attached is the first draft. I'm looking at a civic reporting chatbot for new migrants who notice local problems but don't really know how the reporting system works yet. I'm trying to keep it on interaction barriers rather than turning it into a public-policy piece."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-08T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project09/files/f1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-08T15:30:00+03:00",
+        "sender": "A",
+        "content": "The direction is good, but the draft is still too abstract. It says 'inclusion' a lot and doesn't say enough about where the interaction actually breaks down. Is it terminology, mistrust, not knowing the procedure, or being afraid of submitting the wrong thing? That's what I need to see."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-08T16:05:00+03:00",
+        "sender": "B",
+        "content": "That helps. I'll make the barriers more concrete and treat the chatbot as support for forming a report, not as a general inclusion platform."
+      }
+    ]
+  },
+  {
+    "conversation_id": "round_02_project09",
+    "participants": {
+      "A": "Advisor (Prof. Elena Kovacs)",
+      "B": "Student (Yusuf)"
+    },
+    "project": "Multilingual Civic Reporting Chatbots for New Migrants",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-15T09:00:00+03:00",
+        "sender": "B",
+        "content": "I've revised it based on your notes. f2.pdf now treats the chatbot as a scaffold for first-time report formulation, especially around category confusion, evidence expectations, and fear of doing the process wrong."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-15T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project09/files/f2.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-15T15:30:00+03:00",
+        "sender": "A",
+        "content": "This is much clearer. My only caution is that you shouldn't assume chat will automatically feel safer than a form. For some people it may feel less transparent. Add a comparison and pay attention to whether the chatbot feels helpful or like it's hiding the process."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-15T16:05:00+03:00",
+        "sender": "B",
+        "content": "Good point. I'll compare it against a structured form and make transparency one of the main things I look at."
+      }
+    ]
+  }
+]
