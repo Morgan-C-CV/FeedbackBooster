@@ -25,10 +25,7 @@ def sanitize(text):
 
 class ProposalPDF(FPDF):
     def header(self):
-        self.set_font("Helvetica", "B", 9)
-        self.set_text_color(60, 60, 60)
-        self.cell(0, 8, "HCI Research Proposal Draft | Student-to-Advisor Submission", align="R")
-        self.ln(2)
+        self.ln(4)
 
     def footer(self):
         self.set_y(-12)
