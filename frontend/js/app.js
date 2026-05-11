@@ -134,7 +134,7 @@ document.getElementById('agent-assist-toggle').disabled = document.getElementByI
 async function init() {
     try {
         if (state.isExperimentMode) {
-            updateStatus('Preparing pilot trial and 6-round experiment plan...', 'busy');
+            updateStatus('Preparing 3 pilot methods and 6-round experiment plan...', 'busy');
             const projectsRes = await fetch(`${API_URL}/projects`);
             if (!projectsRes.ok) throw new Error('Failed to get project list');
             const projectsData = await projectsRes.json();
@@ -181,9 +181,18 @@ function buildExperimentPlan(projectIds) {
         'method3', 'method3'
     ]);
 
+    const pilotMethods = ['method1', 'method2', 'method3'];
+    const pilotProjects = pilotMethods.map((_, i) => shuffledProjects[i % shuffledProjects.length]);
+    const pilotPlan = pilotMethods.map((methodId, i) => ({
+        projectId: pilotProjects[i],
+        methodId,
+        isPilot: true,
+        pilotConversationLimit: 1
+    }));
+
     const selectedProjects = [];
     for (let i = 0; i < methodPool.length; i++) {
-        selectedProjects.push(shuffledProjects[i % shuffledProjects.length]);
+        selectedProjects.push(shuffledProjects[(i + pilotMethods.length) % shuffledProjects.length]);
     }
 
     const formalPlan = selectedProjects.map((projectId, i) => ({
@@ -192,14 +201,7 @@ function buildExperimentPlan(projectIds) {
         isPilot: false
     }));
 
-    const remainingProjects = shuffledProjects.filter(projectId => !selectedProjects.includes(projectId));
-    const pilotProjectId = remainingProjects[0] || shuffledProjects[methodPool.length % shuffledProjects.length] || shuffledProjects[0];
-
-    return [{
-        projectId: pilotProjectId,
-        methodId: 'method1',
-        isPilot: true
-    }, ...formalPlan];
+    return [...pilotPlan, ...formalPlan];
 }
 
 function getCurrentMethodConfig() {
@@ -219,14 +221,29 @@ function getFormalRoundCount() {
     return state.sessionPlan.filter(round => !round.isPilot).length;
 }
 
+function getPilotRoundCount() {
+    return state.sessionPlan.filter(round => round.isPilot).length;
+}
+
 function getCompletedFormalRoundNumber() {
     return state.sessionPlan
         .slice(0, state.currentRoundIndex + 1)
         .filter(round => !round.isPilot).length;
 }
 
+function getCompletedPilotRoundNumber() {
+    return state.sessionPlan
+        .slice(0, state.currentRoundIndex + 1)
+        .filter(round => round.isPilot).length;
+}
+
+function getConversationCountForCurrentRound() {
+    const pilotLimit = state.currentMethod?.pilotConversationLimit;
+    return pilotLimit ? Math.min(state.conversations.length, pilotLimit) : state.conversations.length;
+}
+
 function hasNextConversationInProject() {
-    return state.currentIndex + 1 < state.conversations.length;
+    return state.currentIndex + 1 < getConversationCountForCurrentRound();
 }
 
 function hasNextProjectRound() {
@@ -237,8 +254,9 @@ function updateProjectLabel() {
     if (!projectNameEl || !state.project) return;
 
     const pieces = [`Project: ${state.project.name || 'Unknown'}`];
-    if (state.conversations.length) {
-        pieces.push(`Conversation ${state.currentIndex + 1}/${state.conversations.length}`);
+    const conversationCount = getConversationCountForCurrentRound();
+    if (conversationCount) {
+        pieces.push(`Conversation ${state.currentIndex + 1}/${conversationCount}`);
     }
     if (isPilotRound()) {
         pieces.push('Pilot Trial');
@@ -259,7 +277,7 @@ function setMethodBadge() {
 function showRoundMethodDialog() {
     const method = getCurrentMethodConfig();
     if (isPilotRound()) {
-        alert(`Pilot Trial\n${method.shortLabel}\n\nThis is a practice project to help you get familiar with the interface. Results from this pilot are not recorded.\n\n${method.description}`);
+        alert(`Pilot Trial ${getCompletedPilotRoundNumber()}/${getPilotRoundCount()}\n${method.shortLabel}\n\nThis is a practice run to help you get familiar with the interface. This pilot covers one conversation only, and results are not recorded.\n\n${method.description}`);
         return;
     }
 
@@ -273,7 +291,7 @@ function updateNextStepContent() {
 
     if (hasNextConversationInProject()) {
         nextStepMessageEl.textContent = isPilotRound()
-            ? 'Pilot response completed. Proceed to the next conversation in this practice project. Pilot responses are not recorded.'
+            ? 'Pilot response completed. Proceed to the next pilot conversation. Pilot responses are not recorded.'
             : 'Data submitted successfully. Proceed to the next conversation in this project.';
         nextConversationBtnEl.textContent = 'Next Conversation';
         return;
@@ -281,9 +299,9 @@ function updateNextStepContent() {
 
     if (hasNextProjectRound()) {
         nextStepMessageEl.textContent = isPilotRound()
-            ? 'Pilot project completed. Proceed to the formal experiment.'
+            ? 'Pilot method completed. Proceed to the next pilot method or the formal experiment.'
             : 'Project completed. Proceed to the next assigned project and method.';
-        nextConversationBtnEl.textContent = isPilotRound() ? 'Start Experiment' : 'Next Project';
+        nextConversationBtnEl.textContent = isPilotRound() ? 'Next Method' : 'Next Project';
         return;
     }
 
@@ -308,7 +326,7 @@ async function loadRoundFromPlan(roundIndex) {
     }
     updateStatus(
         isPilotRound()
-            ? 'Initializing pilot project...'
+            ? `Initializing pilot method ${getCompletedPilotRoundNumber()}/${getPilotRoundCount()}...`
             : `Initializing round ${getCompletedFormalRoundNumber()}/${getFormalRoundCount()}...`,
         'busy'
     );
@@ -388,11 +406,12 @@ async function startConversation(index) {
         showStep('analysisTrigger');
         document.getElementById('btn-start-analysis').disabled = true;
         setAnalysisTriggerLoading(true);
+        const conversationCount = getConversationCountForCurrentRound();
         const roundLabel = isPilotRound()
-            ? 'Pilot Trial'
+            ? `Pilot ${getCompletedPilotRoundNumber()}/${getPilotRoundCount()}`
             : `Round ${getCompletedFormalRoundNumber()}/${getFormalRoundCount()}`;
-        updateStatus(`Loading ${roundLabel} conversation ${state.currentIndex + 1}/${state.conversations.length} context...`, 'busy');
-        setAnalysisTriggerMessage(`${roundLabel}: loading conversation ${state.currentIndex + 1}/${state.conversations.length} context... You can review the conversation and files to gather the necessary information.`);
+        updateStatus(`Loading ${roundLabel} conversation ${state.currentIndex + 1}/${conversationCount} context...`, 'busy');
+        setAnalysisTriggerMessage(`${roundLabel}: loading conversation ${state.currentIndex + 1}/${conversationCount} context... You can review the conversation and files to gather the necessary information.`);
 
         try {
             updateStatus('Building memory context...', 'busy');

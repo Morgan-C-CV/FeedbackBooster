@@ -20,7 +20,7 @@ When the app opens, you will see:
 - Tester Number
 Enter your assigned participant ID, for example `001` or `005`.
 - Experiment Mode
-Keep this ON for formal user experiments. In this mode, the system runs a pilot trial first and then 6 formal project rounds.
+Keep this ON for formal user experiments. In this mode, the system runs 3 pilot method trials first and then 6 formal project rounds.
 - Enable Agent Assist
 In Experiment Mode, this toggle is controlled by the system design. Outside Experiment Mode, it can be used for non-experiment or manual runs.
 
@@ -28,7 +28,15 @@ Click `Start Study`.
 
 ## 2. Pilot Test (Trial Run)
 
-The first trial is a pilot test run. In this trial, you can get familiar with the system and interaction flow. Pilot responses are not recorded. If anything is unclear during the pilot, ask the tester for clarification.
+Before the formal experiment starts, you will complete 3 pilot trials, one for each method: Human-Only, Chatbot-Assisted, and RMA-Assist.
+
+These pilot trials are only for familiarization:
+
+- each pilot covers one conversation only
+- a pilot does not require completing a full project
+- pilot responses are not recorded
+
+If anything is unclear during the pilot, ask the tester for clarification.
 
 ## 3. Overall Experiment Structure
 
