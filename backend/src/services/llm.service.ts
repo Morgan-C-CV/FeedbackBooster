@@ -1,71 +1,62 @@
 import { GoogleGenerativeAI, GenerativeModel, Part } from '@google/generative-ai';
-import { GoogleAIFileManager } from '@google/generative-ai/server';
-import { llmConfig } from '../config/llm.config';
-import * as mime from 'mime-types';
-import * as path from 'path';
 
-class LLMService {
+function getMimeType(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf': return 'application/pdf';
+    case 'png': return 'image/png';
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'txt':
+    case 'md':
+    case 'csv': return 'text/plain';
+    default: return 'application/octet-stream';
+  }
+}
+
+export class LLMService {
   private genAI: GoogleGenerativeAI;
   private model: GenerativeModel;
-  private fileManager: GoogleAIFileManager;
 
-  constructor() {
-    this.genAI = new GoogleGenerativeAI(llmConfig.geminiApiKey);
+  constructor(apiKey: string) {
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not provided.");
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-    this.fileManager = new GoogleAIFileManager(llmConfig.geminiApiKey);
   }
 
-  /**
-   * Uploads a file to Gemini API and waits for it to be active if it's processing.
-   * Supports Video, Audio, and Images.
-   */
-  async uploadMediaFile(filePath: string): Promise<Part> {
-    if (!llmConfig.geminiApiKey) {
-      throw new Error("GEMINI_API_KEY is not defined in environment variables.");
-    }
-    const mimeType = mime.lookup(filePath) || 'application/octet-stream';
-    const displayName = path.basename(filePath);
+  async getMediaParts(mediaPaths: string[], bucket?: R2Bucket): Promise<Part[]> {
+    const parts: Part[] = [];
+    if (!mediaPaths || mediaPaths.length === 0) return parts;
+    if (!bucket) throw new Error("Bucket is required when mediaPaths are provided.");
 
-    // Upload the file
-    let uploadResponse = await this.fileManager.uploadFile(filePath, {
-      mimeType,
-      displayName,
-    });
-    
-    // Check state, loop if PROCESSING
-    let file = await this.fileManager.getFile(uploadResponse.file.name);
-    while (file.state === "PROCESSING") {
-      // Sleep for 2 seconds to wait for processing to complete on Google's end
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      file = await this.fileManager.getFile(uploadResponse.file.name);
-    }
-
-    if (file.state === "FAILED") {
-      throw new Error(`File processing failed for ${filePath}.`);
-    }
-
-    return {
-      fileData: {
-        mimeType: file.mimeType,
-        fileUri: file.uri
+    for (const p of mediaPaths) {
+      // Remove leading slash if any
+      const key = p.startsWith('/') ? p.slice(1) : p;
+      const object = await bucket.get(key);
+      if (!object) {
+        console.warn(`File not found in R2: ${key}`);
+        continue;
       }
-    };
+      const arrayBuffer = await object.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString('base64');
+      const mimeType = getMimeType(key);
+      
+      parts.push({
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType
+        }
+      });
+    }
+    return parts;
   }
 
-  async generateJsonContent(prompt: string, mediaPaths: string[] = []): Promise<string> {
-    if (!llmConfig.geminiApiKey) {
-      throw new Error("GEMINI_API_KEY is not defined in environment variables.");
-    }
-
+  async generateJsonContent(prompt: string, mediaPaths: string[] = [], bucket?: R2Bucket): Promise<string> {
     const parts: Part[] = [{ text: prompt }];
-
-    // Handle media paths
-    if (mediaPaths && mediaPaths.length > 0) {
-      for (const p of mediaPaths) {
-        const mediaPart = await this.uploadMediaFile(p);
-        parts.push(mediaPart);
-      }
-    }
+    const mediaParts = await this.getMediaParts(mediaPaths, bucket);
+    parts.push(...mediaParts);
 
     const result = await this.model.generateContent({
       contents: [{ role: 'user', parts }],
@@ -78,19 +69,10 @@ class LLMService {
     return response.text();
   }
 
-  async generateContent(prompt: string, mediaPaths: string[] = []): Promise<string> {
-    if (!llmConfig.geminiApiKey) {
-      throw new Error("GEMINI_API_KEY is not defined in environment variables.");
-    }
-
+  async generateContent(prompt: string, mediaPaths: string[] = [], bucket?: R2Bucket): Promise<string> {
     const parts: Part[] = [{ text: prompt }];
-
-    if (mediaPaths && mediaPaths.length > 0) {
-      for (const p of mediaPaths) {
-        const mediaPart = await this.uploadMediaFile(p);
-        parts.push(mediaPart);
-      }
-    }
+    const mediaParts = await this.getMediaParts(mediaPaths, bucket);
+    parts.push(...mediaParts);
 
     const result = await this.model.generateContent({
       contents: [{ role: 'user', parts }]
@@ -100,5 +82,3 @@ class LLMService {
     return response.text();
   }
 }
-
-export const llmService = new LLMService();

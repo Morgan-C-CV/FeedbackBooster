@@ -1,32 +1,54 @@
 import { GoogleGenerativeAI, GenerativeModel, Part, Content, FunctionDeclarationsTool, FunctionCallingMode } from '@google/generative-ai';
-import { llmConfig } from '../config/llm.config';
-import { readFile, readToolDeclaration, MULTIMODAL_PREFIX } from './tools/read.tool';
-import { writeFile, writeToolDeclaration } from './tools/write.tool';
-import { modifyFile, modifyToolDeclaration } from './tools/modify.tool';
-import { llmService } from './llm.service';
 
-// Map of tool name → executor function
-const toolExecutors: Record<string, (args: any) => string> = {
-  read_file: readFile,
-  write_file: writeFile,
-  modify_file: modifyFile,
+// Tool Declarations
+export const readToolDeclaration = {
+  name: 'read_file',
+  description: 'Reads the content of a file from the Cloudflare R2 bucket.',
+  parameters: {
+    type: 'object' as any,
+    properties: {
+      path: {
+        type: 'string' as any,
+        description: 'Path to the file relative to the bucket root (e.g., projects/project01/file.txt)'
+      }
+    },
+    required: ['path']
+  }
 };
 
-// All tool declarations for Gemini function calling
-const toolDeclarations: FunctionDeclarationsTool = {
+export const writeToolDeclaration = {
+  name: 'write_file',
+  description: 'Writes content to a file in the Cloudflare R2 bucket. Creates file if it does not exist.',
+  parameters: {
+    type: 'object' as any,
+    properties: {
+      path: {
+        type: 'string' as any,
+        description: 'Path to the file to write (e.g., projects/project01/new_file.txt)'
+      },
+      content: {
+        type: 'string' as any,
+        description: 'The content to write to the file'
+      }
+    },
+    required: ['path', 'content']
+  }
+};
+
+export const toolDeclarations: FunctionDeclarationsTool = {
   functionDeclarations: [
     readToolDeclaration,
     writeToolDeclaration,
-    modifyToolDeclaration,
   ] as any,
 };
 
-class ToolService {
+export class ToolService {
   private genAI: GoogleGenerativeAI;
   private model: GenerativeModel;
 
-  constructor() {
-    this.genAI = new GoogleGenerativeAI(llmConfig.geminiApiKey);
+  constructor(apiKey: string) {
+    if (!apiKey) throw new Error("GEMINI_API_KEY is not defined.");
+    this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
       model: 'gemini-3.1-flash-lite-preview',
       tools: [toolDeclarations],
@@ -38,40 +60,31 @@ class ToolService {
     });
   }
 
-  /**
-   * Runs a prompt with tool access. The LLM can decide to call tools,
-   * and results are fed back until a final text response is generated.
-   * 
-   * When read_file encounters a multimodal file (PDF, image, audio, video),
-   * it returns a special marker. This method intercepts the marker, uploads
-   * the file via Google's File API, and injects it into the conversation
-   * so the LLM can understand the file natively.
-   * 
-   * @param onToolCall - Optional callback fired each time a tool is invoked, for UI display
-   */
+  private async readFile(args: { path: string }, bucket: R2Bucket): Promise<string> {
+    const key = args.path.startsWith('/') ? args.path.slice(1) : args.path;
+    const object = await bucket.get(key);
+    if (!object) return `Error: File not found: ${key}`;
+    return await object.text();
+  }
+
+  private async writeFile(args: { path: string, content: string }, bucket: R2Bucket): Promise<string> {
+    const key = args.path.startsWith('/') ? args.path.slice(1) : args.path;
+    await bucket.put(key, args.content);
+    return `Success: Wrote to ${key}`;
+  }
+
   async runWithTools(
     prompt: string,
+    bucket: R2Bucket,
     onToolCall?: (toolName: string, args: any, result: string) => void,
   ): Promise<string> {
-    if (!llmConfig.geminiApiKey) {
-      throw new Error("GEMINI_API_KEY is not defined in environment variables.");
-    }
-
     const history: Content[] = [];
-
-    // Initial user message
-    history.push({
-      role: 'user',
-      parts: [{ text: prompt }],
-    });
+    history.push({ role: 'user', parts: [{ text: prompt }] });
 
     const MAX_ITERATIONS = 20;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const result = await this.model.generateContent({
-        contents: history,
-      });
-
+      const result = await this.model.generateContent({ contents: history });
       const response = result.response;
       const candidate = response.candidates?.[0];
 
@@ -79,22 +92,14 @@ class ToolService {
         return response.text() || '(No response from model)';
       }
 
-      // Add model's response to history
       history.push(candidate.content);
-
-      // Check if the model wants to call function(s)
-      const functionCalls = candidate.content.parts.filter(
-        (p: any) => p.functionCall
-      );
+      const functionCalls = candidate.content.parts.filter((p: any) => p.functionCall);
 
       if (functionCalls.length === 0) {
-        // No function calls — model is done, return its text
         return response.text();
       }
 
-      // Execute each function call and collect responses
       const functionResponseParts: Part[] = [];
-      const multimodalParts: Part[] = []; // Extra media parts to inject
 
       for (const part of functionCalls) {
         const fc = (part as any).functionCall;
@@ -102,40 +107,20 @@ class ToolService {
         const args = fc.args;
 
         let toolResult: string;
-        let isMultimodal = false;
 
         try {
-          const executor = toolExecutors[toolName];
-          if (!executor) {
-            toolResult = `Error: Unknown tool "${toolName}"`;
+          if (toolName === 'read_file') {
+            toolResult = await this.readFile(args, bucket);
+          } else if (toolName === 'write_file') {
+            toolResult = await this.writeFile(args, bucket);
           } else {
-            toolResult = executor(args);
-          }
-
-          // Check if this is a multimodal file marker
-          if (toolResult.startsWith(MULTIMODAL_PREFIX)) {
-            isMultimodal = true;
-            const absolutePath = toolResult.slice(MULTIMODAL_PREFIX.length);
-            const ext = absolutePath.split('.').pop()?.toLowerCase() || '';
-
-            // Upload the file via File API
-            toolResult = `[Uploading ${ext.toUpperCase()} file for multimodal analysis: ${args.path}...]`;
-            
-            if (onToolCall) {
-              onToolCall(toolName, args, toolResult);
-            }
-
-            const mediaPart = await llmService.uploadMediaFile(absolutePath);
-            multimodalParts.push(mediaPart);
-
-            toolResult = `[File "${args.path}" has been uploaded and attached to the conversation. You can now analyze its contents directly.]`;
+            toolResult = `Error: Unknown tool "${toolName}"`;
           }
         } catch (err: any) {
           toolResult = `Error: ${err.message}`;
         }
 
-        // Notify caller UI if callback provided (and not already notified for multimodal)
-        if (onToolCall && !isMultimodal) {
+        if (onToolCall) {
           onToolCall(toolName, args, toolResult);
         }
 
@@ -147,16 +132,12 @@ class ToolService {
         } as any);
       }
 
-      // Feed function results back to the model, with any media parts attached
       history.push({
         role: 'user',
-        parts: [...functionResponseParts, ...multimodalParts],
+        parts: functionResponseParts,
       });
     }
 
     return '(Reached maximum tool call iterations)';
   }
 }
-
-export const toolService = new ToolService();
-

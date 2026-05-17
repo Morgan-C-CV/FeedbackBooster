@@ -1,0 +1,70 @@
+[
+  {
+    "conversation_id": "round_01_project12",
+    "participants": {
+      "A": "Advisor (Prof. Miguel Alvarez)",
+      "B": "Student (Irene)"
+    },
+    "project": "LLM-Supported Peer Critique in Studio-Based Design Education",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-10T09:00:00+03:00",
+        "sender": "B",
+        "content": "Prof. Alvarez, attached is the first draft on AI support for peer critique in studio courses. What I care about is whether an LLM scaffold can make critique more specific without making the whole process feel canned. I'm worried the current version still sounds too idealistic."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-10T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project12/files/f1.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-10T15:30:00+03:00",
+        "sender": "A",
+        "content": "That's the right worry. Right now f1.pdf sounds like the AI will simply improve critique, which is too broad and too clean. The real question is how the scaffold changes the practice itself: what people notice, what they say, and whether they start to feel boxed in by the prompt structure."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-10T16:05:00+03:00",
+        "sender": "B",
+        "content": "Yes, that's the tension I'm after. I'll rewrite it around specificity and constraint instead of general quality improvement."
+      }
+    ]
+  },
+  {
+    "conversation_id": "round_02_project12",
+    "participants": {
+      "A": "Advisor (Prof. Miguel Alvarez)",
+      "B": "Student (Irene)"
+    },
+    "project": "LLM-Supported Peer Critique in Studio-Based Design Education",
+    "records": [
+      {
+        "type": "message",
+        "time": "2026-04-18T09:00:00+03:00",
+        "sender": "B",
+        "content": "I've revised the proposal in f2.pdf. It now looks at how an LLM scaffold changes critique specificity and perceived constraint during peer review, rather than claiming it improves critique overall."
+      },
+      {
+        "type": "file",
+        "time": "2026-04-18T09:02:00+03:00",
+        "sender": "B",
+        "content": "/Users/mgccvmacair/Myproject/Academic/ResearchProject/backend/projects/project12/files/f2.pdf"
+      },
+      {
+        "type": "message",
+        "time": "2026-04-18T15:30:00+03:00",
+        "sender": "A",
+        "content": "This is close. The last piece is to separate two kinds of scaffolding: prompts that help students notice more, and prompts that more or less script what they say. That distinction should show up clearly in both the questions and the prototype conditions."
+      },
+      {
+        "type": "message",
+        "time": "2026-04-18T16:05:00+03:00",
+        "sender": "B",
+        "content": "Got it. I'll make that distinction explicit and compare a lens-based prompt with a more structured sentence-template prompt."
+      }
+    ]
+  }
+]

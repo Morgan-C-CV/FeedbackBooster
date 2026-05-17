@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://feedback-booster-backend.ziyuan-wang.workers.dev/api';
 
 // State management
 let state = {
